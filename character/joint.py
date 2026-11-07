@@ -1,26 +1,27 @@
-from shape import Shape
+from .shape import Shape
+from dataclasses import dataclass
 
+@dataclass
 class Joint:
-    def __init__(self, shapeA:Shape, shapeB:Shape, maxAngle:int, minAngle:int):
-        self.__shapeA = shapeA
-        self.__shapeB = shapeB
-        self.__maxAngle = maxAngle
-        self.__minAngle = minAngle
+    ParentShape: Shape
+    ChildShape: Shape
+    maxAngle: int
+    minAngle: int
 
-    def set_max_angle(self, angle:int):
-        self.__maxAngle = angle
+    def set_max_angle(self, angle: int):
+        self.maxAngle = angle
 
-    def set_min_angle(self, angle:int):
-        self.__minAngle = angle
+    def set_min_angle(self, angle: int):
+        self.minAngle = angle
 
     def get_max_angle(self):
-        return self.__maxAngle
+        return self.maxAngle
 
     def get_min_angle(self):
-        return self.__minAngle
+        return self.minAngle
 
-    def get_shape_a(self):
-        return self.__shapeA
-    
-    def get_shape_b(self):
-        return self.__shapeB
+    def get_shape_Parent(self):
+        return self.ParentShape
+
+    def get_shape_Child(self):
+        return self.ChildShape
