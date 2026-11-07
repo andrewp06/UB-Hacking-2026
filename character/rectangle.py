@@ -1,4 +1,4 @@
-from shape import Shape
+from .shape import Shape
 
 class Rectangle:
     def __init__ (self, length:float, width:float):

@@ -1,4 +1,4 @@
-from head import Head
+from .head import Head
 
 class Circle(Head):
 
