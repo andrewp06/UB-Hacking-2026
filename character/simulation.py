@@ -122,7 +122,7 @@ class Simulation:
 )
         head_radius = self.radii[head_index]
 
-        start_x = torso.position.x
+        start_x = self.head.position.x
         max_distance = 0.0
 
         dt = 1 / 120
@@ -134,7 +134,7 @@ class Simulation:
             space.step(dt)
             elapsed += dt
 
-            distance = torso.position.x - start_x
+            distance = self.head.position.x - start_x
             max_distance = max(max_distance, distance)
 
             # Torso touching the ground means failure
