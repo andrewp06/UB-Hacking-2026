@@ -1,4 +1,4 @@
-from shape import Shape
+from .shape import Shape
 
 class Joint:
     def __init__(self, shapeA:Shape, shapeB:Shape, maxAngle:int, minAngle:int):
