@@ -15,20 +15,26 @@ DT = 1/60
 
 def main():
     pygame.init()
-
+    pygame.font.init()
+    remake = False
     while True:
+        if not remake:
         # Window setup
-        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+            screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
-        result = main_menu(screen)
+            result = main_menu(screen)
 
-        if result == "Exit":
-            break
+            if result == "Exit":
+                break
 
-        elif result == "New Alien":
-            placed_parts, straight_angles = start_character_creater(screen)
-            converted_guy = convert_ui_parts(placed_parts, straight_angles)
+        if result == "New Alien" or remake:
+            
+            if not remake:
+                placed_parts, straight_angles = start_character_creater(screen)
+                converted_guy = convert_ui_parts(placed_parts, straight_angles)
 
+            remake = False
+            
             settings = get_simulation_settings(screen, WIDTH)
 
             if settings is None:
@@ -59,8 +65,12 @@ def main():
             print("winner")
 
             result = evo_manager.run_winner(winner, converted_guy, steps, DT, screen)
-            if result != "main menu":
+            if result is None:
                 break
+
+            if result == "remake":
+                remake = True
+
         else:
             pass
 

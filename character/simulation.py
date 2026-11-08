@@ -450,6 +450,8 @@ class Simulation:
             frame_time = 0.0
             if pygame is not None:
                 draw()
+                pygame.time.delay(1000)  # Wait 1 second before simulation starts
+
             for _ in range(steps):
                 if pygame is not None:
                     for event in pygame.event.get():
@@ -476,12 +478,13 @@ class Simulation:
             if pygame is not None:
                 draw()
 
-                rerun_button = pygame.Rect(290, 560, 200, 50)
-                menu_button = pygame.Rect(510, 560, 200, 50)
+                rerun_button = pygame.Rect(180, 560, 200, 50)
+                menu_button = pygame.Rect(400, 560, 200, 50)
+                remake_button = pygame.Rect(620, 560, 200, 50)
 
                 waiting = True
                 rerun = False
-
+                remake = False
                 while waiting:
                     mouse_pos = pygame.mouse.get_pos()
 
@@ -497,24 +500,47 @@ class Simulation:
                             elif menu_button.collidepoint(event.pos):
                                 return "main menu"
 
+                            elif remake_button.collidepoint(event.pos):
+                                remake = True
+                                return "remake"
+
                         elif event.type == pygame.KEYDOWN and event.key in (
                             pygame.K_ESCAPE, pygame.K_SPACE
                         ):
                             waiting = False
 
                     # Rerun button
-                    rerun_color = (75, 170, 100) if rerun_button.collidepoint(mouse_pos) else (60, 150, 90)
+                    rerun_color = (
+                        (75, 170, 100)
+                        if rerun_button.collidepoint(mouse_pos)
+                        else (60, 150, 90)
+                    )
                     pygame.draw.rect(screen, rerun_color, rerun_button, border_radius=8)
 
                     text = font.render("Rerun Simulation", True, (255, 255, 255))
                     screen.blit(text, text.get_rect(center=rerun_button.center))
 
                     # Main menu button
-                    menu_color = (75, 125, 180) if menu_button.collidepoint(mouse_pos) else (50, 85, 125)
+                    menu_color = (
+                        (75, 125, 180)
+                        if menu_button.collidepoint(mouse_pos)
+                        else (50, 85, 125)
+                    )
                     pygame.draw.rect(screen, menu_color, menu_button, border_radius=8)
 
                     text = font.render("Main Menu", True, (255, 255, 255))
                     screen.blit(text, text.get_rect(center=menu_button.center))
+
+                    # Change Generation Settings button
+                    remake_color = (
+                        (180, 135, 65)
+                        if remake_button.collidepoint(mouse_pos)
+                        else (145, 105, 45)
+                    )
+                    pygame.draw.rect(screen, remake_color, remake_button, border_radius=8)
+
+                    text = font.render("Change Generation Settings", True, (255, 255, 255))
+                    screen.blit(text, text.get_rect(center=remake_button.center))
 
                     pygame.display.flip()
                     clock.tick(30)
@@ -523,7 +549,7 @@ class Simulation:
                     return "rerun"
                 
         finally:
-            if pygame is not None and not rerun:
+            if pygame is not None and not rerun and not remake:
                 pygame.quit()
         return self.get_result()
 
