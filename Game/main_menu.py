@@ -1,4 +1,3 @@
-
 import math
 import os
 import pygame
@@ -83,6 +82,24 @@ def main_menu(screen):
 
     head, limb = _load_alien_sprites()
 
+    # Load Start Game Button sprite with graceful fallback
+    try:
+        start_btn_img = pygame.image.load(
+            os.path.join(asset_dir, "StartgameButton.png")
+        ).convert_alpha()
+        start_btn_img = pygame.transform.smoothscale(start_btn_img, (300, 60))
+    except FileNotFoundError:
+        start_btn_img = None
+
+    # Load Quit Button sprite with graceful fallback
+    try:
+        quit_btn_img = pygame.image.load(
+            os.path.join(asset_dir, "QuitButton.png")
+        ).convert_alpha()
+        quit_btn_img = pygame.transform.smoothscale(quit_btn_img, (300, 60))
+    except FileNotFoundError:
+        quit_btn_img = None
+
     # Preserve original button positions.
     buttons = {
         "New Alien": pygame.Rect(
@@ -120,22 +137,40 @@ def main_menu(screen):
         for name, rect in buttons.items():
             hovered = rect.collidepoint(mouse_pos)
 
-            color = (
-                (205, 185, 235)
-                if hovered
-                else (180, 155, 215)
-            )
+            if name == "New Alien" and start_btn_img is not None:
+                screen.blit(start_btn_img, rect.topleft)
+                text = font.render(
+                    "Make Alien", True, (255, 255, 255)
+                )
+                screen.blit(
+                    text, text.get_rect(center=rect.center)
+                )
+            elif name == "Exit" and quit_btn_img is not None:
+                screen.blit(quit_btn_img, rect.topleft)
+                text = font.render(
+                    "Exit", True, (255, 255, 255)
+                )
+                screen.blit(
+                    text, text.get_rect(center=rect.center)
+                )
+            else:
+                color = (
+                    (205, 185, 235)
+                    if hovered
+                    else (180, 155, 215)
+                )
 
-            pygame.draw.rect(
-                screen, color, rect, border_radius=10
-            )
+                pygame.draw.rect(
+                    screen, color, rect, border_radius=10
+                )
 
-            text = font.render(
-                name, True, (255, 255, 255)
-            )
-            screen.blit(
-                text, text.get_rect(center=rect.center)
-            )
+                label_text = "Make Alien" if name == "New Alien" else name
+                text = font.render(
+                    label_text, True, (255, 255, 255)
+                )
+                screen.blit(
+                    text, text.get_rect(center=rect.center)
+                )
 
         # Animated alien in lower-right corner.
         _draw_alien(
