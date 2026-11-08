@@ -7,7 +7,7 @@ pygame.init()
 # Window setup
 WIDTH, HEIGHT = 900, 700
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Character Creator - Outward Facing Joints")
+pygame.display.set_caption("Character Creator - Clean Pin Rotation")
 clock = pygame.time.Clock()
 
 # Load assets and scale cleanly for pixel art
@@ -33,7 +33,7 @@ sidebar_items = [
 ]
 
 # List of placed parts:
-# {'type': str, 'pos': [x, y], 'angle': int, 'parent': body_index or None, 'parent_joint': int, 'my_joint': int}
+# {'type': str, 'pos': [x, y], 'angle': int, 'parent': index or None, 'parent_joint': int, 'my_joint': int}
 placed_parts = []
 
 # Interaction state variables
@@ -102,26 +102,30 @@ def get_world_points(part):
   return world_pts
 
 
-def get_straight_out_angle(body_part, parent_joint_idx, limb_part, my_joint_idx):
-  """Calculates the datum angle where the limb points straight outward from the body center."""
-  body_center = pygame.math.Vector2(body_part["pos"]) + get_part_center_offset(
-      body_part["type"]
-  )
-  body_local_pts = get_local_points_list(body_part["type"])
-  joint_local_pos = body_local_pts[parent_joint_idx]
+def get_straight_out_angle(parent_part, parent_joint_idx, child_part, my_joint_idx):
+  """Calculates the datum angle where the child limb points straight outward from the parent part."""
+  parent_pts = get_world_points(parent_part)
+  joint_world_pos = parent_pts[parent_joint_idx]
 
-  # Vector from body center pointing outward through the connection point
-  radial_dir = joint_local_pos.rotate(-body_part["angle"])
-
-  # Baseline direction of the limb pointing outward away from the pin
-  if my_joint_idx == 0:
-    base_dir = pygame.math.Vector2(
-        0, 1
-    )  # Flipped from (0, -1) to point outward
+  if parent_part["type"] == "circle_body":
+    body_center = pygame.math.Vector2(parent_part["pos"]) + get_part_center_offset(
+        parent_part["type"]
+    )
+    radial_dir = joint_world_pos - body_center
   else:
-    base_dir = pygame.math.Vector2(
-        0, -1
-    )  # Flipped from (0, 1) to point outward
+    local_pts = get_local_points_list(parent_part["type"])
+    local_offset = local_pts[parent_joint_idx]
+    radial_dir = local_offset.rotate(-parent_part["angle"])
+
+  if radial_dir.length_squared() == 0:
+    radial_dir = pygame.math.Vector2(0, 1)
+  else:
+    radial_dir = radial_dir.normalize()
+
+  if my_joint_idx == 0:
+    base_dir = pygame.math.Vector2(0, 1)
+  else:
+    base_dir = pygame.math.Vector2(0, -1)
 
   straight_angle = math.degrees(
       math.atan2(-radial_dir.y, radial_dir.x)
@@ -130,10 +134,10 @@ def get_straight_out_angle(body_part, parent_joint_idx, limb_part, my_joint_idx)
   return straight_angle % 360
 
 
-def clamp_angle_to_range(angle, center_angle):
-  """Clamps an angle within +/- 45 degrees of a center datum angle."""
+def clamp_angle_to_range(angle, center_angle, max_range=45):
+  """Clamps an angle within a specified range (+/- max_range) of a center datum angle."""
   diff = (angle - center_angle + 180) % 360 - 180
-  diff = max(-45, min(45, diff))
+  diff = max(-max_range, min(max_range, diff))
   return (center_angle + diff) % 360
 
 
@@ -183,9 +187,9 @@ while running:
 
               if part["parent"] is not None and not shift_held:
                 drag_mode = "rotate_attached"
-                body_part = placed_parts[part["parent"]]
-                body_pts = get_world_points(body_part)
-                pin_world = body_pts[part["parent_joint"]]
+                parent_part = placed_parts[part["parent"]]
+                parent_pts = get_world_points(parent_part)
+                pin_world = parent_pts[part["parent_joint"]]
 
                 local_pts = get_local_points_list(part["type"])
                 free_joint_idx = 1 if part["my_joint"] == 0 else 0
@@ -240,39 +244,46 @@ while running:
               part_pts = get_world_points(moved_part)
               snapped = False
               for my_j_idx, lp_world in enumerate(part_pts):
-                for b_idx, body_part in enumerate(placed_parts):
-                  if b_idx == dragging_index:
+                for target_idx, target_part in enumerate(placed_parts):
+                  if target_idx == dragging_index:
                     continue
-                  if body_part["type"] == "circle_body":
-                    body_pts = get_world_points(body_part)
-                    for bp_idx, bp_world in enumerate(body_pts):
-                      dist = lp_world.distance_to(bp_world)
+                  if target_part["type"] in [
+                      "circle_body",
+                      "rect_limb",
+                      "leg",
+                  ]:
+                    target_pts = get_world_points(target_part)
+                    for tp_idx, tp_world in enumerate(target_pts):
+                      dist = lp_world.distance_to(tp_world)
                       if dist < 25:
-                        dx = bp_world.x - lp_world.x
-                        dy = bp_world.y - lp_world.y
+                        dx = tp_world.x - lp_world.x
+                        dy = tp_world.y - lp_world.y
 
                         tree = get_sub_tree(dragging_index, placed_parts)
                         for idx in tree:
                           placed_parts[idx]["pos"][0] += dx
                           placed_parts[idx]["pos"][1] += dy
 
-                        moved_part["parent"] = b_idx
-                        moved_part["parent_joint"] = bp_idx
+                        moved_part["parent"] = target_idx
+                        moved_part["parent_joint"] = tp_idx
                         moved_part["my_joint"] = my_j_idx
 
-                        # Auto-correct angle to be within +/- 45 deg of straight outward upon connection
+                        max_range = (
+                            45
+                            if target_part["type"] == "circle_body"
+                            else 90
+                        )
                         straight_angle = get_straight_out_angle(
-                            body_part, bp_idx, moved_part, my_j_idx
+                            target_part, tp_idx, moved_part, my_j_idx
                         )
                         moved_part["angle"] = clamp_angle_to_range(
-                            moved_part["angle"], straight_angle
+                            moved_part["angle"], straight_angle, max_range
                         )
 
-                        # Re-anchor joint position after angle clamping
                         part_pts_new = get_world_points(moved_part)
                         current_joint_pt = part_pts_new[my_j_idx]
-                        fix_dx = bp_world.x - current_joint_pt.x
-                        fix_dy = bp_world.y - current_joint_pt.y
+                        fix_dx = tp_world.x - current_joint_pt.x
+                        fix_dy = tp_world.y - current_joint_pt.y
                         for idx in tree:
                           placed_parts[idx]["pos"][0] += fix_dx
                           placed_parts[idx]["pos"][1] += fix_dy
@@ -298,18 +309,21 @@ while running:
           new_angle = (old_angle + event.y * 15) % 360
 
           if part["parent"] is not None:
-            body_part = placed_parts[part["parent"]]
+            parent_part = placed_parts[part["parent"]]
+            max_range = 45 if parent_part["type"] == "circle_body" else 90
             straight_angle = get_straight_out_angle(
-                body_part, part["parent_joint"], part, part["my_joint"]
+                parent_part, part["parent_joint"], part, part["my_joint"]
             )
-            new_angle = clamp_angle_to_range(new_angle, straight_angle)
+            new_angle = clamp_angle_to_range(
+                new_angle, straight_angle, max_range
+            )
 
           part["angle"] = new_angle
 
           if part["parent"] is not None:
-            body_part = placed_parts[part["parent"]]
-            body_pts = get_world_points(body_part)
-            target_world_pt = body_pts[part["parent_joint"]]
+            parent_part = placed_parts[part["parent"]]
+            parent_pts = get_world_points(parent_part)
+            target_world_pt = parent_pts[part["parent_joint"]]
 
             part_pts_new = get_world_points(part)
             current_joint_pt = part_pts_new[part["my_joint"]]
@@ -329,30 +343,27 @@ while running:
   if dragging_index is not None:
     part = placed_parts[dragging_index]
     if drag_mode == "rotate_attached":
-      body_part = placed_parts[part["parent"]]
-      body_pts = get_world_points(body_part)
-      pin_world = body_pts[part["parent_joint"]]
+      parent_part = placed_parts[part["parent"]]
+      parent_pts = get_world_points(parent_part)
+      pin_world = parent_pts[part["parent_joint"]]
 
       current_mouse_angle = math.degrees(
           math.atan2(pin_world.y - mouse_pos.y, mouse_pos.x - pin_world.x)
       )
       local_pts = get_local_points_list(part["type"])
       free_joint_idx = 1 if part["my_joint"] == 0 else 0
-      base_free_angle = math.degrees(
-          math.atan2(-local_pts[free_joint_idx].y, local_pts[free_joint_idx].x)
-      )
+      unrotated_free_offset = local_pts[free_joint_idx]
 
       raw_angle = (
           current_mouse_angle + base_free_angle + rotation_angle_offset
       ) % 360
 
-      # Clamp rotation within +/- 45 degrees of straight outward datum
+      max_range = 45 if parent_part["type"] == "circle_body" else 90
       straight_angle = get_straight_out_angle(
-          body_part, part["parent_joint"], part, part["my_joint"]
+          parent_part, part["parent_joint"], part, part["my_joint"]
       )
-      part["angle"] = clamp_angle_to_range(raw_angle, straight_angle)
+      part["angle"] = clamp_angle_to_range(raw_angle, straight_angle, max_range)
 
-      # Re-anchor the pinned joint to stay glued to the body joint
       part_pts_new = get_world_points(part)
       current_joint_pt = part_pts_new[part["my_joint"]]
       dx = pin_world.x - current_joint_pt.x
