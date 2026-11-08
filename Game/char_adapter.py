@@ -1,5 +1,4 @@
 
-
 import math
 from dataclasses import dataclass
 
@@ -7,6 +6,7 @@ from character.circle import Circle
 from character.rectangle import Rectangle
 from character.guy import Guy
 from character.joint import Joint
+from character.triangle import Triangle
 
 
 # Must match the dimensions, centers and pin offsets in character_creation.py.
@@ -15,6 +15,8 @@ PARTS = {
     "circle_body": {"center": (80, 80), "size": (160, 160),
                     "pins": [(-31, -54), (31, -54), (-62, 0),
                              (62, 0), (-31, 54), (31, 54)]},
+    "triangle_body": {"center": (80, 80), "size": (130, 130),
+                    "pins": [(0, -38), (52, 52), (-52, 52)]},
     "rect_limb": {"center": (25, 60), "size": (50, 120),
                   "pins": [(0, -50), (0, 50)]},
     "long_rect_limb": {"center": (25, 120), "size": (50, 240),
@@ -32,7 +34,7 @@ PARTS["circle_body"]["pins"] = [
 ]
 
 # Pick realistic masses here, independent of graphics sizes.
-DEFAULT_MASSES = {"circle_body": 1.0, "rect_limb": .5, "leg": .5, "long_rect_limb": 1}
+DEFAULT_MASSES = {"circle_body": 1.0, "triangle_body": 1.0, "rect_limb": .5, "leg": .5, "long_rect_limb": .5}
 
 
 @dataclass
@@ -64,12 +66,16 @@ def _pin_screen(part, pin_index):
 
 
 def _bottom_offset(part):
-    """Distance below the part center, accounting for a rotated rectangle."""
+    """Distance below the part center, accounting for a rotated part."""
     kind = part["type"]
     if kind == "circle_body":
         return PARTS[kind]["size"][0] / 2
     w, h = PARTS[kind]["size"]
     a = math.radians(float(part.get("angle", 0)))
+    if kind == "triangle_body":
+        # Lowest point of the rotated triangle (screen y points downward).
+        verts = [(0, -h / 2), (w / 2, h / 2), (-w / 2, h / 2)]
+        return max(vx * math.sin(a) + vy * math.cos(a) for vx, vy in verts)
     return abs(w * math.sin(a)) / 2 + abs(h * math.cos(a)) / 2
 
 
@@ -85,13 +91,19 @@ def convert_ui_parts(placed_parts, straight_angles, masses=None, ground_clearanc
         raise ValueError("The character creator has no placed parts.")
     kinds = [p.get("type") for p in parts]
     if any(kind not in PARTS for kind in kinds):
-        raise ValueError("Unsupported UI part type; expected circle_body, rect_limb or leg.")
-    heads = [i for i, kind in enumerate(kinds) if kind == "circle_body"]
+        raise ValueError(
+            "Unsupported UI part type; expected circle_body, triangle_body, "
+            "rect_limb, long_rect_limb or leg."
+        )
+    head_kinds = ("circle_body", "triangle_body")
+    heads = [i for i, kind in enumerate(kinds) if kind in head_kinds]
     if len(heads) != 1:
-        raise ValueError("Exactly one circle_body is required; it becomes the Head.")
+        raise ValueError(
+            "Exactly one circle_body or triangle_body is required; it becomes the Head."
+        )
     head_idx = heads[0]
     if parts[head_idx].get("parent") is not None:
-        raise ValueError("The circle_body must be the root, without a parent.")
+        raise ValueError("The head must be the root, without a parent.")
     if not math.isfinite(ground_clearance) or ground_clearance < 0:
         raise ValueError("ground_clearance must be finite and nonnegative.")
 
@@ -121,6 +133,8 @@ def convert_ui_parts(placed_parts, straight_angles, masses=None, ground_clearanc
         mass = float(masses[kind])
         if kind == "circle_body":
             objects[i] = Circle(mass=mass, radius=80.0)
+        elif kind == "triangle_body":
+            objects[i] = Triangle(mass=mass, height=PARTS[kind]["size"][1])
         else:
             width, height = PARTS[kind]["size"]
             objects[i] = Rectangle(mass=mass, length=width, width=height)

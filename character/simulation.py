@@ -9,6 +9,7 @@ from .circle import Circle
 from .rectangle import Rectangle
 from .guy import Guy
 from .head import Head
+from .triangle import Triangle
 
 
 @dataclass
@@ -55,8 +56,8 @@ class Simulation:
         self.duration = float(duration)
         self.motor_max_force = float(motor_max_force)
 
-        if not isinstance(self.head, Circle):
-            raise TypeError("The head must be a Circle")
+        if not isinstance(self.head, (Circle, Triangle)):
+            raise TypeError("The head must be a Circle or a Triangle")
         if len(self.positions) != len(self.shapes):
             raise ValueError("Provide one position for each shape")
         if len(self.initial_angles) != len(self.shapes):
@@ -88,8 +89,13 @@ class Simulation:
             elif isinstance(part, Rectangle):
                 if part.get_length() <= 0 or part.get_width() <= 0:
                     raise ValueError("Rectangle dimensions must be positive")
+            elif isinstance(part, Triangle):
+                if part.get_height() <= 0:
+                    raise ValueError("Triangle height must be positive")
             else:
-                raise TypeError("Only Circle and Rectangle are currently supported")
+                raise TypeError(
+                    "Only Circle, Rectangle and Triangle are currently supported"
+                )
         for joint in self.joints:
             if joint.get_min_angle() > joint.get_max_angle():
                 raise ValueError("Joint minimum angle exceeds maximum angle")
@@ -125,6 +131,12 @@ class Simulation:
                 inertia = pymunk.moment_for_circle(mass, 0, radius)
                 body = pymunk.Body(mass, inertia)
                 hitbox = pymunk.Circle(body, radius)
+            elif isinstance(part, Triangle):
+                half = part.get_height() / 2
+                vertices = [(0, half), (half, -half), (-half, -half)]
+                inertia = pymunk.moment_for_poly(mass, vertices)
+                body = pymunk.Body(mass, inertia)
+                hitbox = pymunk.Poly(body, vertices)
             else:
                 size = (part.get_length(), part.get_width())
                 inertia = pymunk.moment_for_box(mass, size)
