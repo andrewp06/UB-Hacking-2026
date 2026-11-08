@@ -6,10 +6,14 @@ import pygame
 # Define local connection points relative to part center (0,0)
 BODY_LOCAL_POINTS = []
 
-
 LIMB_LOCAL_POINTS = [
     pygame.math.Vector2(0, -50),  # Top joint (Index 0)
     pygame.math.Vector2(0, 50),  # Bottom joint (Index 1)
+]
+
+LONG_LIMB_LOCAL_POINTS = [
+    pygame.math.Vector2(0, -100),  # Top joint (Index 0)
+    pygame.math.Vector2(0, 100),  # Bottom joint (Index 1)
 ]
 
 LEG_LOCAL_POINTS = [
@@ -23,6 +27,8 @@ def get_part_center_offset(ptype):
     return pygame.math.Vector2(80, 80)
   elif ptype == "rect_limb":
     return pygame.math.Vector2(25, 60)
+  elif ptype == "long_rect_limb":
+    return pygame.math.Vector2(25, 120)
   elif ptype == "leg":
     return pygame.math.Vector2(60, 60)
   return pygame.math.Vector2(0, 0)
@@ -33,6 +39,8 @@ def get_local_points_list(ptype):
     return BODY_LOCAL_POINTS
   elif ptype == "rect_limb":
     return LIMB_LOCAL_POINTS
+  elif ptype == "long_rect_limb":
+    return LONG_LIMB_LOCAL_POINTS
   elif ptype == "leg":
     return LEG_LOCAL_POINTS
   return []
@@ -129,34 +137,85 @@ def start_character_creater():
   # Window setup
   WIDTH, HEIGHT = 900, 700
   screen = pygame.display.set_mode((WIDTH, HEIGHT))
-  pygame.display.set_caption("Character Creator - Continuous Frame Joint Sync")
+  pygame.display.set_caption("Character Creator - Start Button Validation")
   clock = pygame.time.Clock()
 
   # Load assets and scale cleanly for pixel art
   script_dir = os.path.dirname(__file__)
-  img_path = os.path.join(script_dir, "test_leg.png")
 
+  # 1. Body Asset
   try:
-    raw_leg_img = pygame.image.load(img_path).convert_alpha()
-    leg_img = pygame.transform.scale(raw_leg_img, (120, 120))
-    leg_thumb = pygame.transform.scale(leg_img, (60, 60))
+    body_img = pygame.image.load(
+        os.path.join(script_dir, "test_body.png")
+    ).convert_alpha()
+    body_img = pygame.transform.scale(body_img, (160, 160))
+    body_thumb = pygame.transform.scale(body_img, (50, 50))
   except FileNotFoundError:
-    leg_img = pygame.Surface((120, 120))
+    body_img = pygame.Surface((160, 160), pygame.SRCALPHA)
+    pygame.draw.circle(body_img, (0, 162, 232), (80, 80), 80)
+    body_thumb = pygame.transform.scale(body_img, (50, 50))
+
+  # 2. Rect Limb Asset
+  try:
+    rect_img = pygame.image.load(
+        os.path.join(script_dir, "test_rect_limb.png")
+    ).convert_alpha()
+    rect_img = pygame.transform.scale(rect_img, (50, 120))
+    rect_thumb = pygame.transform.scale(rect_img, (30, 50))
+  except FileNotFoundError:
+    rect_img = pygame.Surface((50, 120), pygame.SRCALPHA)
+    pygame.draw.rect(rect_img, (34, 177, 76), (0, 0, 50, 120), border_radius=6)
+    rect_thumb = pygame.transform.scale(rect_img, (30, 50))
+
+  # 3. Long Rect Limb Asset
+  try:
+    long_img = pygame.image.load(
+        os.path.join(script_dir, "test_long_rect_limb.png")
+    ).convert_alpha()
+    long_img = pygame.transform.scale(long_img, (50, 240))
+    long_thumb = pygame.transform.scale(long_img, (25, 55))
+  except FileNotFoundError:
+    long_img = pygame.Surface((50, 240), pygame.SRCALPHA)
+    pygame.draw.rect(long_img, (255, 140, 0), (0, 0, 50, 240), border_radius=6)
+    long_thumb = pygame.transform.scale(long_img, (25, 55))
+
+  # 4. Leg Asset
+  try:
+    leg_img = pygame.image.load(
+        os.path.join(script_dir, "test_leg.png")
+    ).convert_alpha()
+    leg_img = pygame.transform.scale(leg_img, (120, 120))
+    leg_thumb = pygame.transform.scale(leg_img, (50, 50))
+  except FileNotFoundError:
+    leg_img = pygame.Surface((120, 120), pygame.SRCALPHA)
     leg_img.fill((200, 100, 100))
-    leg_thumb = pygame.transform.scale(leg_img, (60, 60))
+    leg_thumb = pygame.transform.scale(leg_img, (50, 50))
 
-  # UI Sidebar dimensions
+  def get_part_image(ptype):
+    if ptype == "circle_body":
+      return body_img
+    elif ptype == "rect_limb":
+      return rect_img
+    elif ptype == "long_rect_limb":
+      return long_img
+    elif ptype == "leg":
+      return leg_img
+    return None
+
+  # UI Sidebar & Button dimensions
   UI_WIDTH = 200
-
   sidebar_items = [
-      {"type": "leg", "rect": pygame.Rect(20, 30, 160, 70)},
-      {"type": "circle_body", "rect": pygame.Rect(20, 120, 160, 70)},
-      {"type": "rect_limb", "rect": pygame.Rect(20, 210, 160, 70)},
+      {"type": "leg", "rect": pygame.Rect(20, 30, 160, 65)},
+      {"type": "circle_body", "rect": pygame.Rect(20, 105, 160, 65)},
+      {"type": "rect_limb", "rect": pygame.Rect(20, 180, 160, 65)},
+      {"type": "long_rect_limb", "rect": pygame.Rect(20, 255, 160, 65)},
   ]
 
-  # List of placed parts:
-  # {'type': str, 'pos': [x, y], 'angle': int, 'parent': index or None, 'parent_joint': int, 'my_joint': int}
+  start_button_rect = pygame.Rect(WIDTH - 130, HEIGHT - 70, 110, 50)
+
+  # List of placed parts and active destruction animation effects
   placed_parts = []
+  destruction_effects = []
 
   # Interaction state variables
   dragging_type = None
@@ -185,7 +244,34 @@ def start_character_creater():
 
       elif event.type == pygame.MOUSEBUTTONDOWN:
         if event.button == 1:  # Left click
-          if mouse_pos.x < UI_WIDTH:
+          # Check if "Start" button was clicked
+          if start_button_rect.collidepoint(mouse_pos):
+            # Validate character build
+            bodies = [
+                i
+                for i, p in enumerate(placed_parts)
+                if p["type"] == "circle_body"
+            ]
+            if len(bodies) != 1:
+              print(
+                  "Validation Failed: You must have exactly 1 Body (Head)."
+                  f" Found: {len(bodies)}"
+              )
+            else:
+              body_idx = bodies[0]
+              connected_indices = get_sub_tree(body_idx, placed_parts)
+              if len(connected_indices) == len(placed_parts):
+                print("Validation Successful! Returning placed_parts:")
+                for p in placed_parts:
+                  print(p)
+                return placed_parts
+              else:
+                print(
+                    "Validation Failed: Some limbs are not connected to the"
+                    " body or are floating!"
+                )
+
+          elif mouse_pos.x < UI_WIDTH:
             for item in sidebar_items:
               if item["rect"].collidepoint(mouse_pos):
                 dragging_type = item["type"]
@@ -202,6 +288,8 @@ def start_character_creater():
                   if ptype == "circle_body"
                   else (50, 120)
                   if ptype == "rect_limb"
+                  else (50, 240)
+                  if ptype == "long_rect_limb"
                   else (120, 120)
               )
               part_rect = pygame.Rect(px, py, w, h)
@@ -233,15 +321,16 @@ def start_character_creater():
                 else:
                   drag_mode = "move"
                   target_idx = i
-                  if part["parent"] is not None and shift_held:
-                    curr = i
-                    while placed_parts[curr]["parent"] is not None:
-                      curr = placed_parts[curr]["parent"]
-                    target_idx = curr
-                    dragging_index = target_idx
 
-                  r_px, r_py = placed_parts[dragging_index]["pos"]
+                  if part["parent"] is not None and shift_held:
+                    part["parent"] = None
+                    part["parent_joint"] = None
+                    part["my_joint"] = None
+                    target_idx = i
+
+                  r_px, r_py = placed_parts[target_idx]["pos"]
                   drag_offset = [r_px - mouse_pos.x, r_py - mouse_pos.y]
+                  dragging_index = target_idx
                 break
 
       elif event.type == pygame.MOUSEBUTTONUP:
@@ -263,45 +352,71 @@ def start_character_creater():
 
           elif dragging_index is not None:
             moved_part = placed_parts[dragging_index]
-            if moved_part["type"] in ["rect_limb", "leg"]:
-              if moved_part["parent"] is None:
-                part_pts = get_world_points(moved_part)
-                snapped = False
-                for my_j_idx, lp_world in enumerate(part_pts):
-                  for target_idx, target_part in enumerate(placed_parts):
-                    if target_idx == dragging_index:
-                      continue
-                    if target_part["type"] in [
-                        "circle_body",
-                        "rect_limb",
-                        "leg",
-                    ]:
-                      target_pts = get_world_points(target_part)
-                      for tp_idx, tp_world in enumerate(target_pts):
-                        dist = lp_world.distance_to(tp_world)
-                        if dist < 25:
-                          moved_part["parent"] = target_idx
-                          moved_part["parent_joint"] = tp_idx
-                          moved_part["my_joint"] = my_j_idx
 
-                          max_range = (
-                              45
-                              if target_part["type"] == "circle_body"
-                              else 90
-                          )
-                          straight_angle = get_straight_out_angle(
-                              target_part, tp_idx, moved_part, my_j_idx
-                          )
-                          moved_part["angle"] = clamp_angle_to_range(
-                              moved_part["angle"], straight_angle, max_range
-                          )
+            if mouse_pos.x < UI_WIDTH:
+              tree_indices = get_sub_tree(dragging_index, placed_parts)
+              tree_indices.sort(reverse=True)
 
-                          snapped = True
+              for idx in tree_indices:
+                p_to_destroy = placed_parts.pop(idx)
+                ptype = p_to_destroy["type"]
+                c_off = get_part_center_offset(ptype)
+                center_world = (
+                    pygame.math.Vector2(p_to_destroy["pos"]) + c_off
+                )
+                destruction_effects.append({
+                    "type": ptype,
+                    "pos": center_world,
+                    "angle": p_to_destroy["angle"],
+                    "timer": 20,
+                })
+
+              for p in placed_parts:
+                if p["parent"] in tree_indices:
+                  p["parent"] = None
+                  p["parent_joint"] = None
+                  p["my_joint"] = None
+            else:
+              if moved_part["type"] in ["rect_limb", "long_rect_limb", "leg"]:
+                if moved_part["parent"] is None:
+                  part_pts = get_world_points(moved_part)
+                  snapped = False
+                  for my_j_idx, lp_world in enumerate(part_pts):
+                    for target_idx, target_part in enumerate(placed_parts):
+                      if target_idx == dragging_index:
+                        continue
+                      if target_part["type"] in [
+                          "circle_body",
+                          "rect_limb",
+                          "long_rect_limb",
+                          "leg",
+                      ]:
+                        target_pts = get_world_points(target_part)
+                        for tp_idx, tp_world in enumerate(target_pts):
+                          dist = lp_world.distance_to(tp_world)
+                          if dist < 25:
+                            moved_part["parent"] = target_idx
+                            moved_part["parent_joint"] = tp_idx
+                            moved_part["my_joint"] = my_j_idx
+
+                            max_range = (
+                                45
+                                if target_part["type"] == "circle_body"
+                                else 90
+                            )
+                            straight_angle = get_straight_out_angle(
+                                target_part, tp_idx, moved_part, my_j_idx
+                            )
+                            moved_part["angle"] = clamp_angle_to_range(
+                                moved_part["angle"], straight_angle, max_range
+                            )
+
+                            snapped = True
+                            break
+                        if snapped:
                           break
-                      if snapped:
-                        break
-                  if snapped:
-                    break
+                    if snapped:
+                      break
 
             dragging_index = None
             drag_mode = None
@@ -349,7 +464,7 @@ def start_character_creater():
 
         max_range = 45 if parent_part["type"] == "circle_body" else 90
         straight_angle = get_straight_out_angle(
-            parent_part, part["parent_joint"], part, part["my_joint"]
+            parent_part, parent_joint_idx=part["parent_joint"], child_part=part, my_joint_idx=part["my_joint"]
         )
         part["angle"] = clamp_angle_to_range(raw_angle, straight_angle, max_range)
 
@@ -365,85 +480,131 @@ def start_character_creater():
           placed_parts[idx]["pos"][0] += dx
           placed_parts[idx]["pos"][1] += dy
 
-        if shift_held and part["parent"] is not None:
-          part["parent"] = None
-          part["parent_joint"] = None
-          part["my_joint"] = None
-
     # Continuously update/sync all child limbs to their parent pins every single frame
     update_attached_children_positions(placed_parts)
 
     # --- DRAWING / RENDERING ---
     screen.fill((240, 240, 240))
+
+    # 1. DRAW UI SIDEBAR BACKGROUND & BUTTONS FIRST
+    pygame.draw.rect(screen, (50, 50, 50), (0, 0, UI_WIDTH, HEIGHT))
     pygame.draw.line(screen, (200, 200, 200), (UI_WIDTH, 0), (UI_WIDTH, HEIGHT), 3)
 
-
-    def draw_part_surface(ptype, angle):
-      c_off = get_part_center_offset(ptype)
-      cx, cy = int(c_off.x), int(c_off.y)
-      local_offsets = get_local_points_list(ptype)
-
-      if ptype == "circle_body":
-        surf = pygame.Surface((160, 160), pygame.SRCALPHA)
-        pygame.draw.circle(surf, (0, 162, 232), (cx, cy), 80)
-        for offset in local_offsets:
-          dot_pos = pygame.math.Vector2(cx, cy) + offset
-          pygame.draw.circle(surf, (0, 0, 0), (int(dot_pos.x), int(dot_pos.y)), 10)
-        return pygame.transform.rotate(surf, angle)
-
-      elif ptype == "rect_limb":
-        surf = pygame.Surface((50, 120), pygame.SRCALPHA)
-        pygame.draw.rect(surf, (34, 177, 76), (0, 0, 50, 120), border_radius=6)
-        for offset in local_offsets:
-          dot_pos = pygame.math.Vector2(cx, cy) + offset
-          pygame.draw.circle(surf, (0, 0, 0), (int(dot_pos.x), int(dot_pos.y)), 10)
-        return pygame.transform.rotate(surf, angle)
-
-      elif ptype == "leg":
-        surf = pygame.Surface((120, 120), pygame.SRCALPHA)
-        surf.blit(leg_img, (0, 0))
-        for offset in local_offsets:
-          dot_pos = pygame.math.Vector2(cx, cy) + offset
-          pygame.draw.circle(surf, (0, 0, 0), (int(dot_pos.x), int(dot_pos.y)), 10)
-        return pygame.transform.rotate(surf, angle)
-
-
-    def draw_part(surface, part):
-      ptype = part["type"]
-      x, y = part["pos"]
-      angle = part["angle"]
-
-      rot_img = draw_part_surface(ptype, angle)
-      c_off = get_part_center_offset(ptype)
-      rot_rect = rot_img.get_rect(center=(x + c_off.x, y + c_off.y))
-      surface.blit(rot_img, rot_rect.topleft)
-
-
-    # Draw all placed parts
-    for part in placed_parts:
-      draw_part(screen, part)
-
-    # Draw UI Sidebar Background
-    pygame.draw.rect(screen, (50, 50, 50), (0, 0, UI_WIDTH, HEIGHT))
-
-    # Draw Sidebar Buttons & Labels
-    font = pygame.font.SysFont(None, 22)
+    font = pygame.font.SysFont(None, 20)
     for item in sidebar_items:
       pygame.draw.rect(screen, (80, 80, 80), item["rect"], border_radius=6)
       pygame.draw.rect(screen, (120, 120, 120), item["rect"], 2, border_radius=6)
 
       if item["type"] == "leg":
         text = font.render("Leg Part", True, (255, 255, 255))
-        screen.blit(leg_thumb, (item["rect"].x + 10, item["rect"].centery - 30))
-        screen.blit(text, (item["rect"].x + 75, item["rect"].centery - 10))
+        screen.blit(leg_thumb, (item["rect"].x + 5, item["rect"].centery - 25))
+        screen.blit(text, (item["rect"].x + 60, item["rect"].centery - 10))
       elif item["type"] == "circle_body":
-        text = font.render("Body (Head)", True, (255, 255, 255))
-        screen.blit(text, (item["rect"].x + 15, item["rect"].centery - 10))
+        text = font.render("Body", True, (255, 255, 255))
+        screen.blit(body_thumb, (item["rect"].x + 5, item["rect"].centery - 25))
+        screen.blit(text, (item["rect"].x + 60, item["rect"].centery - 10))
       elif item["type"] == "rect_limb":
         text = font.render("Rect Limb", True, (255, 255, 255))
-        screen.blit(text, (item["rect"].x + 15, item["rect"].centery - 10))
+        screen.blit(rect_thumb, (item["rect"].x + 10, item["rect"].centery - 25))
+        screen.blit(text, (item["rect"].x + 50, item["rect"].centery - 10))
+      elif item["type"] == "long_rect_limb":
+        text = font.render("Long Limb", True, (255, 255, 255))
+        screen.blit(long_thumb, (item["rect"].x + 12, item["rect"].centery - 25))
+        screen.blit(text, (item["rect"].x + 50, item["rect"].centery - 10))
 
-    # Draw preview of NEW item being dragged from sidebar
+    # Draw "Start" Button in Bottom Right
+    btn_color = (
+        (70, 180, 70)
+        if start_button_rect.collidepoint(mouse_pos)
+        else (50, 150, 50)
+    )
+    pygame.draw.rect(screen, btn_color, start_button_rect, border_radius=8)
+    pygame.draw.rect(screen, (30, 100, 30), start_button_rect, 2, border_radius=8)
+    btn_font = pygame.font.SysFont(None, 24, bold=True)
+    btn_text = btn_font.render("Start", True, (255, 255, 255))
+    screen.blit(
+        btn_text,
+        (
+            start_button_rect.centerx - btn_text.get_width() // 2,
+            start_button_rect.centery - btn_text.get_height() // 2,
+        ),
+    )
+
+    def is_joint_attached(part, part_idx, j_idx):
+      if part_idx is None:
+        return False
+      if part["parent"] is not None and part["my_joint"] == j_idx:
+        return True
+      for idx, other in enumerate(placed_parts):
+        if other["parent"] == part_idx and other["parent_joint"] == j_idx:
+          return True
+      return False
+
+    def draw_part_surface(part, part_idx):
+      ptype = part["type"]
+      angle = part["angle"]
+      c_off = get_part_center_offset(ptype)
+      cx, cy = int(c_off.x), int(c_off.y)
+      local_offsets = get_local_points_list(ptype)
+      base_img = get_part_image(ptype)
+
+      surf = pygame.Surface(base_img.get_size(), pygame.SRCALPHA)
+      surf.blit(base_img, (0, 0))
+
+      for j_idx, offset in enumerate(local_offsets):
+        dot_pos = pygame.math.Vector2(cx, cy) + offset
+        color = (
+            (144, 238, 144)
+            if is_joint_attached(part, part_idx, j_idx)
+            else (0, 0, 0)
+        )
+        pygame.draw.circle(surf, color, (int(dot_pos.x), int(dot_pos.y)), 10)
+
+      return pygame.transform.rotate(surf, angle)
+
+    def draw_part(surface, part, part_idx=None):
+      ptype = part["type"]
+      x, y = part["pos"]
+      angle = part["angle"]
+
+      rot_img = draw_part_surface(part, part_idx)
+      c_off = get_part_center_offset(ptype)
+      rot_rect = rot_img.get_rect(center=(x + c_off.x, y + c_off.y))
+      surface.blit(rot_img, rot_rect.topleft)
+
+    # 2. DRAW PLACED PARTS
+    for idx, part in enumerate(placed_parts):
+      draw_part(screen, part, idx)
+
+    # 3. DRAW DESTRUCTION / POP ANIMATIONS & FADE OUTS
+    for fx in destruction_effects[:]:
+      progress = 1.0 - (fx["timer"] / 20.0)
+      alpha = int(255 * (1.0 - progress))
+
+      base_img = get_part_image(fx["type"])
+      fade_surf = pygame.Surface(base_img.get_size(), pygame.SRCALPHA)
+      fade_surf.blit(base_img, (0, 0))
+      fade_surf.set_alpha(max(0, alpha))
+      rot_img = pygame.transform.rotate(fade_surf, fx["angle"])
+
+      c_off = get_part_center_offset(fx["type"])
+      rot_rect = rot_img.get_rect(center=(fx["pos"].x, fx["pos"].y))
+      screen.blit(rot_img, rot_rect.topleft)
+
+      for i in range(6):
+        angle_rad = math.radians(i * 60 + progress * 30)
+        line_len = 15 + progress * 40
+        end_x = fx["pos"].x + math.cos(angle_rad) * line_len
+        end_y = fx["pos"].y + math.sin(angle_rad) * line_len
+        pygame.draw.line(
+            screen, (255, 50, 50), (fx["pos"].x, fx["pos"].y), (end_x, end_y), 3
+        )
+
+      fx["timer"] -= 1
+      if fx["timer"] <= 0:
+        destruction_effects.remove(fx)
+
+    # 4. DRAW PREVIEW OF NEW ITEM BEING DRAGGED FROM SIDEBAR
     if dragging_type:
       preview_part = {
           "type": dragging_type,
@@ -453,7 +614,7 @@ def start_character_creater():
           ],
           "angle": current_angle,
       }
-      draw_part(screen, preview_part)
+      draw_part(screen, preview_part, None)
 
     pygame.display.flip()
     clock.tick(60)
