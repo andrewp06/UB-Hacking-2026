@@ -34,7 +34,7 @@ def main():
                 converted_guy = convert_ui_parts(placed_parts, straight_angles)
 
             remake = False
-            
+
             settings = get_simulation_settings(screen, WIDTH)
 
             if settings is None:
@@ -62,7 +62,6 @@ def main():
 
             with open("winner.pkl", "wb") as file:
                 pickle.dump(winner, file)
-            print("winner")
 
             result = evo_manager.run_winner(winner, converted_guy, steps, DT, screen)
             if result is None:

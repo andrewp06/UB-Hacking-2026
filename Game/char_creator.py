@@ -353,7 +353,6 @@ def start_character_creater(screen=None):
               error_timer = 300
 
             if can_start:
-              print("Validation Successful! Returning placed_parts and straight_angles:")
               straight_angles = []
               for i, p in enumerate(placed_parts):
                 if p["parent"] is not None:
