@@ -13,8 +13,8 @@ DT = 1/60
 GENERATIONS = 100
 
 def main():
-    placed_parts = start_character_creater()
-    converted_guy = convert_ui_parts(placed_parts)
+    placed_parts, straight_angles = start_character_creater()
+    converted_guy = convert_ui_parts(placed_parts, straight_angles)
     config = create_neat_config(GuyMorphology(converted_guy.guy), "machineLearning/ml_config")
     evo_manager = EvolutionManager(config)
     winner = evo_manager.run(converted_guy, STEPS, DT, GENERATIONS)

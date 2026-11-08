@@ -73,13 +73,14 @@ def _bottom_offset(part):
     return abs(w * math.sin(a)) / 2 + abs(h * math.cos(a)) / 2
 
 
-def convert_ui_parts(placed_parts, masses=None, ground_clearance=8.0):
+def convert_ui_parts(placed_parts, straight_angles, masses=None, ground_clearance=8.0):
     """Return Guy + positions, joint anchors and initial body angles.
 
     `placed_parts` is the UI's list of dictionaries. No Pygame needed here.
     Requires one circle_body (the head) and every other part attached to it.
     """
     parts = list(placed_parts)
+    straight_angles = list(straight_angles)
     if not parts:
         raise ValueError("The character creator has no placed parts.")
     kinds = [p.get("type") for p in parts]
@@ -160,14 +161,14 @@ def convert_ui_parts(placed_parts, masses=None, ground_clearance=8.0):
                 "in the UI before converting."
             )
 
-        # RotaryLimitJoint measures the raw child angle minus parent angle,
-        initial_relative = float(child.get("angle", 0)) - float(parent.get("angle", 0))
         travel = 45 if parent["type"] == "circle_body" else 90
+
         joint = Joint(
             objects[parent_idx], objects[i],
-            maxAngle=initial_relative + travel,
-            minAngle=initial_relative - travel,
+            maxAngle=straight_angles[i] + travel,
+            minAngle=straight_angles[i] - travel,
         )
+        
         guy.add_joint(joint)
         anchors.append(to_world(parent_pin))
 
