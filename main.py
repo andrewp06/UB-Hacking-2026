@@ -1,9 +1,9 @@
 
-
+import pygame
 import pickle
 
 from Game.char_adapter import convert_ui_parts
-from Game.char_creator import start_character_creater
+from Game.char_creator import start_character_creater, HEIGHT, WIDTH
 from machineLearning.guyMorphology import GuyMorphology
 from machineLearning.dynamicConfig import create_neat_config
 from machineLearning.evolutionManager import EvolutionManager
@@ -13,7 +13,12 @@ DT = 1/60
 GENERATIONS = 100
 
 def main():
-    placed_parts, straight_angles = start_character_creater()
+    pygame.init()
+
+    # Window setup
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+    placed_parts, straight_angles = start_character_creater(screen)
     converted_guy = convert_ui_parts(placed_parts, straight_angles)
     config = create_neat_config(GuyMorphology(converted_guy.guy), "machineLearning/ml_config")
     evo_manager = EvolutionManager(config)
@@ -22,8 +27,9 @@ def main():
     with open("winner.pkl", "wb") as file:
         pickle.dump(winner, file)
     print("winner")
-    while True:
-        run_winner = evo_manager.run_winner(winner, converted_guy, STEPS, DT)
+    
+    run_winner = evo_manager.run_winner(winner, converted_guy, STEPS, DT, screen)
+
 
 if __name__ == "__main__":
     main()

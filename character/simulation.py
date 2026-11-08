@@ -250,7 +250,7 @@ class Simulation:
         )
         return self.get_result()
 
-    def run(self, steps=None, dt=1/120, render=False, network=None) -> SimulationResult:
+    def run(self, steps=None, dt=1/120, render=False, network=None, screen=None) -> SimulationResult:
         """Run up to steps * dt seconds. Defaults to self.duration / dt."""
         if not math.isfinite(dt) or dt <= 0:
             raise ValueError("dt must be a positive finite number")
@@ -260,12 +260,14 @@ class Simulation:
             raise ValueError("steps must be a nonnegative integer")
 
         pygame = None
-        screen = clock = font = None
+        clock = font = None
+
         if render:
             import pygame as pygame_module
             pygame = pygame_module
             pygame.init()
-            screen = pygame.display.set_mode((1000, 650))
+            if screen is None:
+                screen = pygame.display.set_mode((1000, 650))
             pygame.display.set_caption("Alien Physics Simulation")
             clock = pygame.time.Clock()
             font = pygame.font.Font(None, 25)
@@ -341,20 +343,43 @@ class Simulation:
                     draw()
                     clock.tick(60)
                     frame_time = 0.0
+
             if pygame is not None:
                 draw()
+
+                button = pygame.Rect(400, 560, 200, 50)
+
                 waiting = True
+                rerun = False
+
                 while waiting:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             waiting = False
+
+                        elif event.type == pygame.MOUSEBUTTONDOWN:
+                            if button.collidepoint(event.pos):
+                                rerun = True
+                                waiting = False
+
                         elif event.type == pygame.KEYDOWN and event.key in (
                             pygame.K_ESCAPE, pygame.K_SPACE
                         ):
                             waiting = False
+
+                    pygame.draw.rect(screen, (60, 150, 90), button, border_radius=8)
+
+                    text = font.render("Rerun Simulation", True, (255, 255, 255))
+                    screen.blit(text, text.get_rect(center=button.center))
+
+                    pygame.display.flip()
                     clock.tick(30)
+
+                if rerun:
+                    return "rerun"
+                
         finally:
-            if pygame is not None:
+            if pygame is not None and not rerun:
                 pygame.quit()
         return self.get_result()
 

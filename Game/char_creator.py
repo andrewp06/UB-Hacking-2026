@@ -5,7 +5,7 @@ import pygame
 
 # Define local connection points relative to part center (0,0)
 BODY_LOCAL_POINTS = []
-
+WIDTH, HEIGHT = 900, 700
 TRIANGLE_LOCAL_POINTS = [
     pygame.math.Vector2(0, -38),   # Top vertex joint
     pygame.math.Vector2(52, 52),   # Bottom-right vertex joint
@@ -162,13 +162,8 @@ def render_wrapped_text(surface, text, font, color, x, y, max_width, line_spacin
   return current_y
 
 
-def start_character_creater():
+def start_character_creater(screen):
 
-  pygame.init()
-
-  # Window setup
-  WIDTH, HEIGHT = 900, 700
-  screen = pygame.display.set_mode((WIDTH, HEIGHT))
   pygame.display.set_caption("Character Creator - Instant Snap on Spawn")
   clock = pygame.time.Clock()
 
@@ -833,8 +828,6 @@ def start_character_creater():
 
     pygame.display.flip()
     clock.tick(60)
-
-  pygame.quit()
 
 
 if __name__ == "__main__":

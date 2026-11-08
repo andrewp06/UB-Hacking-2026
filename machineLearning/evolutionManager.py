@@ -34,21 +34,24 @@ class EvolutionManager:
             )
 
         return winner
-    def run_winner(self, winner, convertedAlien, steps, dt):
+    def run_winner(self, winner, convertedAlien, steps, dt, screen = None):
         network = neat.nn.FeedForwardNetwork.create(
             winner, self.config
         )
 
-        simulation = Simulation(convertedAlien)
+        while True:
+            simulation = Simulation(convertedAlien)
 
-        result = simulation.run(
-            steps=steps,
-            dt=dt,
-            render=True,
-            network=network
-        )
+            result = simulation.run(
+                steps=steps,
+                dt=dt,
+                render=True,
+                network=network,
+                screen=screen
+            )
 
-        return result
+            if result != "rerun":
+                break
 
 
 def evaluate_genome(genome, config, convertedAlien, steps, dt):
