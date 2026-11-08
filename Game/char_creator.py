@@ -187,7 +187,7 @@ def start_character_creater():
   except FileNotFoundError:
     canvas_bg_img = None
 
-  # 1. Circle Body Asset (Replaced with circleheadwhiteoutline.png)
+  # 1. Circle Body Asset
   try:
     body_img = pygame.image.load(
         os.path.join(script_dir, "circleheadwhiteoutline.png")
@@ -202,7 +202,7 @@ def start_character_creater():
   # 2. Triangle Body Asset
   try:
     triangle_img = pygame.image.load(
-        os.path.join(script_dir, "trianglehead.png")
+        os.path.join(script_dir, "triangleheadwhiteoutline.png")
     ).convert_alpha()
     triangle_img = pygame.transform.scale(triangle_img, (160, 160))
     triangle_thumb = pygame.transform.scale(triangle_img, (40, 40))
@@ -216,7 +216,7 @@ def start_character_creater():
   # 3. Rect Limb Asset
   try:
     rect_img = pygame.image.load(
-        os.path.join(script_dir, "test_rect_limb.png")
+        os.path.join(script_dir, "shortlimb.png")
     ).convert_alpha()
     rect_img = pygame.transform.scale(rect_img, (50, 120))
     rect_thumb = pygame.transform.scale(rect_img, (20, 50))
@@ -334,9 +334,19 @@ def start_character_creater():
             ]
             can_start = False
             if len(bodies) == 1:
-              connected_indices = get_sub_tree(bodies[0], placed_parts)
-              if len(connected_indices) == len(placed_parts):
-                can_start = True
+              if len(placed_parts) <= 1:
+                error_message = "*Need At Least 1 Limb*"
+                error_timer = 300
+              else:
+                connected_indices = get_sub_tree(bodies[0], placed_parts)
+                if len(connected_indices) == len(placed_parts):
+                  can_start = True
+                else:
+                  error_message = "*Rules Not Followed*"
+                  error_timer = 300
+            else:
+              error_message = "*Rules Not Followed*"
+              error_timer = 300
 
             if can_start:
               print("Validation Successful! Returning placed_parts and straight_angles:")
@@ -353,8 +363,8 @@ def start_character_creater():
 
               return placed_parts, straight_angles
             else:
-              error_message = "*Rules Not Followed*"
-              error_timer = 300  # 5 seconds at 60 FPS
+              # error_message is already set above
+              pass
 
           elif mouse_pos.x < UI_WIDTH:
             for item in sidebar_items:
@@ -677,7 +687,7 @@ def start_character_creater():
         screen.blit(triangle_thumb, (item["rect"].x + 6, item["rect"].centery - 20))
         screen.blit(text, (item["rect"].x + 50, item["rect"].centery - 8))
       elif item["type"] == "rect_limb":
-        text = font.render("Rect Limb", True, (255, 255, 255))
+        text = font.render("Short Limb", True, (255, 255, 255))
         screen.blit(rect_thumb, (item["rect"].x + 10, item["rect"].centery - 22))
         screen.blit(text, (item["rect"].x + 50, item["rect"].centery - 8))
       elif item["type"] == "long_rect_limb":
@@ -711,7 +721,7 @@ def start_character_creater():
         i for i, p in enumerate(placed_parts) if p["type"] in ["circle_body", "triangle_body"]
     ]
     can_start = False
-    if len(bodies) == 1:
+    if len(bodies) == 1 and len(placed_parts) > 1:
       connected_indices = get_sub_tree(bodies[0], placed_parts)
       if len(connected_indices) == len(placed_parts):
         can_start = True
