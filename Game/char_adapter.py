@@ -158,7 +158,7 @@ def convert_ui_parts(placed_parts, masses=None, ground_clearance=8.0):
                 "in the UI before converting."
             )
 
-        # RotaryLimitJoint measures child angle minus parent angle.
+        # RotaryLimitJoint measures the raw child angle minus parent angle,
         initial_relative = float(child.get("angle", 0)) - float(parent.get("angle", 0))
         travel = 45 if parent["type"] == "circle_body" else 90
         joint = Joint(
