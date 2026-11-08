@@ -294,6 +294,7 @@ def start_character_creater():
                 print("Validation Successful! Returning placed_parts:")
                 for p in placed_parts:
                   print(p)
+                update_attached_children_positions(placed_parts)
                 return placed_parts
               else:
                 print(
