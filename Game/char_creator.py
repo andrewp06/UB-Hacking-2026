@@ -251,7 +251,7 @@ def start_character_creater():
   # UI Sidebar & Button dimensions
   UI_WIDTH = 200
 
-  # Organized Sidebar Items (Adjusted Y coordinates to accommodate extended Tutorial)
+  # Organized Sidebar Items
   sidebar_items = [
       # Heads Section
       {"type": "circle_body", "rect": pygame.Rect(15, 295, 170, 40), "section": "Heads"},
@@ -285,6 +285,10 @@ def start_character_creater():
   current_angle = 0
   rotation_angle_offset = 0
 
+  # Error messaging variables
+  error_message = ""
+  error_timer = 0
+
   body_angles = [-120, -60, 180, 0, 120, 60]
   for angle_deg in body_angles:
     rad = math.radians(angle_deg)
@@ -297,6 +301,10 @@ def start_character_creater():
     mouse_pos = pygame.math.Vector2(pygame.mouse.get_pos())
     keys = pygame.key.get_pressed()
     shift_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+
+    # Decrement error timer if active
+    if error_timer > 0:
+      error_timer -= 1
 
     for event in pygame.event.get():
       if event.type == pygame.QUIT:
@@ -315,29 +323,34 @@ def start_character_creater():
                 for i, p in enumerate(placed_parts)
                 if p["type"] in ["circle_body", "triangle_body"]
             ]
-            if len(bodies) != 1:
-              print(
-                  "Validation Failed: You must have exactly 1 Body/Head."
-                  f" Found: {len(bodies)}"
-              )
-            else:
-              body_idx = bodies[0]
-              connected_indices = get_sub_tree(body_idx, placed_parts)
+            can_start = False
+            if len(bodies) == 1:
+              connected_indices = get_sub_tree(bodies[0], placed_parts)
               if len(connected_indices) == len(placed_parts):
-                print("Validation Successful! Returning placed_parts:")
-                for p in placed_parts:
-                  print(p)
-                update_attached_children_positions(placed_parts)
-                return placed_parts
-              else:
-                print(
-                    "Validation Failed: Some limbs are not connected to the"
-                    " body or are floating!"
-                )
+                can_start = True
+
+            if can_start:
+              print("Validation Successful! Returning placed_parts:")
+              for p in placed_parts:
+                print(p)
+              return placed_parts
+            else:
+              error_message = "*Rules Not Followed*"
+              error_timer = 300  # 5 seconds at 60 FPS
 
           elif mouse_pos.x < UI_WIDTH:
             for item in sidebar_items:
               if item["rect"].collidepoint(mouse_pos):
+                # Check if trying to add a second head
+                if item["type"] in ["circle_body", "triangle_body"]:
+                  existing_bodies = [
+                      p for p in placed_parts if p["type"] in ["circle_body", "triangle_body"]
+                  ]
+                  if len(existing_bodies) >= 1:
+                    error_message = "*Two Heads Cannot Be Added*"
+                    error_timer = 300
+                    break
+
                 dragging_type = item["type"]
                 current_angle = 0
                 c_off = get_part_center_offset(dragging_type)
@@ -669,16 +682,34 @@ def start_character_creater():
     cb_label = font.render("Show Connecting Points", True, (220, 220, 220))
     screen.blit(cb_label, (checkbox_rect.right + 6, checkbox_rect.centery - 8))
 
+    # Determine Start Button State & Color
+    bodies = [
+        i for i, p in enumerate(placed_parts) if p["type"] in ["circle_body", "triangle_body"]
+    ]
+    can_start = False
+    if len(bodies) == 1:
+      connected_indices = get_sub_tree(bodies[0], placed_parts)
+      if len(connected_indices) == len(placed_parts):
+        can_start = True
+
+    if can_start:
+      btn_color = (
+          (70, 180, 70)
+          if start_button_rect.collidepoint(mouse_pos)
+          else (50, 150, 50)
+      )
+      btn_text_color = (255, 255, 255)
+      border_col = (30, 100, 30)
+    else:
+      btn_color = (130, 130, 130)  # Greyed out
+      btn_text_color = (200, 200, 200)
+      border_col = (90, 90, 90)
+
     # Draw "Start" Button in Bottom Right
-    btn_color = (
-        (70, 180, 70)
-        if start_button_rect.collidepoint(mouse_pos)
-        else (50, 150, 50)
-    )
     pygame.draw.rect(screen, btn_color, start_button_rect, border_radius=8)
-    pygame.draw.rect(screen, (30, 100, 30), start_button_rect, 2, border_radius=8)
+    pygame.draw.rect(screen, border_col, start_button_rect, 2, border_radius=8)
     btn_font = pygame.font.SysFont(None, 24, bold=True)
-    btn_text = btn_font.render("Start", True, (255, 255, 255))
+    btn_text = btn_font.render("Start", True, btn_text_color)
     screen.blit(
         btn_text,
         (
@@ -686,6 +717,14 @@ def start_character_creater():
             start_button_rect.centery - btn_text.get_height() // 2,
         ),
     )
+
+    # Draw Fading Error Message in Bottom Left of UI Bar if Active
+    if error_timer > 0:
+      err_font = pygame.font.SysFont(None, 15, bold=True)
+      alpha = int(255 * (error_timer / 300.0))
+      err_surf = err_font.render(error_message, True, (255, 50, 50))
+      err_surf.set_alpha(alpha)
+      screen.blit(err_surf, (15, HEIGHT - 50))
 
     def is_joint_attached(part, part_idx, j_idx):
       if part_idx is None:
