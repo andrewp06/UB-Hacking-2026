@@ -13,8 +13,7 @@ from .head import Head
 class SimulationResult:
     distance: float
     survival_time: float
-    fell: bool
-
+    fell: bool 
 
 class Simulation:
     def __init__(
@@ -45,7 +44,7 @@ class Simulation:
         self.duration = float(duration)
         self.motor_max_force = float(motor_max_force)
 
-        if not isinstance(self.head,Head ):
+        if not isinstance(self.head, Circle):
             raise TypeError("The head must be a Circle")
         if len(self.positions) != len(self.shapes):
             raise ValueError("Provide one position for each shape")
@@ -164,6 +163,30 @@ class Simulation:
         )
         self.tracked = self.bodies[id(tracked_part)]
         self.start_x = self.tracked.position.x
+
+    def GetNetwork_Inputs(self) -> list[float]:
+        """Return [head vx, head vy, joint1 angle, joint1 angular speed, ...].
+
+        Joint measurements are relative (child minus parent) in the order
+        returned by guy.get_joints(). Angle is in radians, angular speed
+        is in radians/second, and linear velocity is in world units/second.
+        """
+        head_body = self.bodies[id(self.head)]
+        inputs = [
+            float(head_body.velocity.x),
+            float(head_body.velocity.y),
+        ]
+
+        for joint in self.joints:
+            parent = self.bodies[id(joint.get_shape_Parent())]
+            child = self.bodies[id(joint.get_shape_Child())]
+            relative_angle = child.angle - parent.angle
+            relative_angular_velocity = (
+                child.angular_velocity - parent.angular_velocity
+            )
+            inputs.extend([float(relative_angle), float(relative_angular_velocity)])
+
+        return inputs
 
     def set_limb_torque(self, limb, torque: float):
         """Set a persistent torque on a shape (+ is counterclockwise)."""
@@ -310,28 +333,28 @@ class Simulation:
         return self.get_result()
 
 
-if __name__ == "__main__":
-    from .joint import Joint
+# if __name__ == "__main__":
+#     from .joint import Joint
 
-    head = Circle(mass=1.0, radius=13.0)
-    torso = Rectangle(mass=5.0, length=48.0, width=24.0)
-    left_leg = Rectangle(mass=2.0, length=12.0, width=54.0)
-    right_leg = Rectangle(mass=2.0, length=12.0, width=54.0)
+#     head = Circle(mass=1.0, radius=13.0)
+#     torso = Rectangle(mass=5.0, length=48.0, width=24.0)
+#     left_leg = Rectangle(mass=2.0, length=12.0, width=54.0)
+#     right_leg = Rectangle(mass=2.0, length=12.0, width=54.0)
 
-    alien = Guy(head)
-    for part in (torso, left_leg, right_leg):
-        alien.add_shape(part)
-    neck = Joint(torso, head, 20, -20)
-    left_hip = Joint(torso, left_leg, 55, -55)
-    right_hip = Joint(torso, right_leg, 55, -55)
-    for joint in (neck, left_hip, right_hip):
-        alien.add_joint(joint)
+#     alien = Guy(head)
+#     for part in (torso, left_leg, right_leg):
+#         alien.add_shape(part)
+#     neck = Joint(torso, head, 20, -20)
+#     left_hip = Joint(torso, left_leg, 55, -55)
+#     right_hip = Joint(torso, right_leg, 55, -55)
+#     for joint in (neck, left_hip, right_hip):
+#         alien.add_joint(joint)
 
-    trial = Simulation(
-        guy=alien,
-        positions=[(0, 124), (0, 86), (-17, 47), (17, 47)],
-        joint_anchors=[(0, 105), (-17, 74), (17, 74)],
-    )
-    trial.set_joint_torque(left_hip, 250)
-    trial.set_joint_torque(right_hip, 2000)
-    print(trial.run(steps=1200, dt=1 / 120, render=True))
+#     trial = Simulation(
+#         guy=alien,
+#         positions=[(0, 124), (0, 86), (-17, 47), (17, 47)],
+#         joint_anchors=[(0, 105), (-17, 74), (17, 74)],
+#     )
+#     trial.set_joint_torque(left_hip, 25000)
+#     trial.set_joint_torque(right_hip, -25000)
+#     print(trial.run(steps=1200, dt=1 / 120, render=True))
