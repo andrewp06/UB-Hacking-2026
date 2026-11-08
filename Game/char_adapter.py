@@ -17,6 +17,8 @@ PARTS = {
                              (62, 0), (-31, 54), (31, 54)]},
     "rect_limb": {"center": (25, 60), "size": (50, 120),
                   "pins": [(0, -50), (0, 50)]},
+    "long_rect_limb": {"center": (25, 120), "size": (50, 240),
+                  "pins": [(0, -100), (0, 100)]},
     "leg": {"center": (60, 60), "size": (120, 120),
             "pins": [(0, -50), (0, 50)]},
 }
@@ -30,7 +32,7 @@ PARTS["circle_body"]["pins"] = [
 ]
 
 # Pick realistic masses here, independent of graphics sizes.
-DEFAULT_MASSES = {"circle_body": 1.0, "rect_limb": .5, "leg": .5}
+DEFAULT_MASSES = {"circle_body": 1.0, "rect_limb": .5, "leg": .5, "long_rect_limb": 1}
 
 
 @dataclass
@@ -158,10 +160,8 @@ def convert_ui_parts(placed_parts, masses=None, ground_clearance=8.0):
                 "in the UI before converting."
             )
 
-        # RotaryLimitJoint measures child angle minus parent angle.
-        initial_relative = (
-            float(child.get("angle", 0)) - float(parent.get("angle", 0)) + 180
-        ) % 360 - 180
+        # RotaryLimitJoint measures the raw child angle minus parent angle,
+        initial_relative = float(child.get("angle", 0)) - float(parent.get("angle", 0))
         travel = 45 if parent["type"] == "circle_body" else 90
         joint = Joint(
             objects[parent_idx], objects[i],
