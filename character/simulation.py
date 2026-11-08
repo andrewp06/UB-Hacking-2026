@@ -446,6 +446,8 @@ class Simulation:
             screen.blit(font.render(stats, True, (240, 240, 245)), (15, 15))
 
             pygame.display.flip()
+        rerun = False
+        remake = False
         try:
             frame_time = 0.0
             if pygame is not None:
@@ -483,8 +485,6 @@ class Simulation:
                 remake_button = pygame.Rect(570, 250, 200, 50)
 
                 waiting = True
-                rerun = False
-                remake = False
                 while waiting:
                     mouse_pos = pygame.mouse.get_pos()
 
