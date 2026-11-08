@@ -136,6 +136,32 @@ def update_attached_children_positions(parts):
       part["pos"][1] += dy
 
 
+def render_wrapped_text(surface, text, font, color, x, y, max_width, line_spacing=2):
+  """Utility to render multi-line text with word wrapping."""
+  words = text.split(" ")
+  lines = []
+  current_line = ""
+
+  for word in words:
+    test_line = current_line + (" " if current_line else "") + word
+    if font.size(test_line)[0] <= max_width:
+      current_line = test_line
+    else:
+      if current_line:
+        lines.append(current_line)
+      current_line = word
+  if current_line:
+    lines.append(current_line)
+
+  current_y = y
+  for line in lines:
+    rendered_surf = font.render(line, True, color)
+    surface.blit(rendered_surf, (x, current_y))
+    current_y += font.get_linesize() + line_spacing
+
+  return current_y
+
+
 def start_character_creater():
 
   pygame.init()
@@ -205,11 +231,9 @@ def start_character_creater():
         os.path.join(script_dir, "test_leg.png")
     ).convert_alpha()
     leg_img = pygame.transform.scale(leg_img, (120, 120))
-    leg_thumb = pygame.transform.scale(leg_img, (40, 40))
   except FileNotFoundError:
     leg_img = pygame.Surface((120, 120), pygame.SRCALPHA)
     leg_img.fill((200, 100, 100))
-    leg_thumb = pygame.transform.scale(leg_img, (40, 40))
 
   def get_part_image(ptype):
     if ptype == "circle_body":
@@ -227,19 +251,28 @@ def start_character_creater():
   # UI Sidebar & Button dimensions
   UI_WIDTH = 200
 
-  # Organized Sidebar Items
+  # Organized Sidebar Items (Adjusted Y coordinates to accommodate extended Tutorial)
   sidebar_items = [
       # Heads Section
-      {"type": "circle_body", "rect": pygame.Rect(15, 55, 170, 50), "section": "Heads"},
-      {"type": "triangle_body", "rect": pygame.Rect(15, 110, 170, 50), "section": "Heads"},
+      {"type": "circle_body", "rect": pygame.Rect(15, 295, 170, 40), "section": "Heads"},
+      {"type": "triangle_body", "rect": pygame.Rect(15, 340, 170, 40), "section": "Heads"},
       # Limbs Section
-      {"type": "rect_limb", "rect": pygame.Rect(15, 205, 170, 50), "section": "Limbs"},
-      {"type": "long_rect_limb", "rect": pygame.Rect(15, 260, 170, 50), "section": "Limbs"},
-      {"type": "leg", "rect": pygame.Rect(15, 315, 170, 50), "section": "Limbs"},
+      {"type": "rect_limb", "rect": pygame.Rect(15, 430, 170, 40), "section": "Limbs"},
+      {"type": "long_rect_limb", "rect": pygame.Rect(15, 475, 170, 40), "section": "Limbs"},
+  ]
+
+  tutorial_steps = [
+      "1. Click and drag parts into the window",
+      "2. Attach limbs to the head and other limbs at the connecting points",
+      "3. Shift click a limb that is attached to detach",
+      "4. Drag parts back into this bar to delete them",
+      "5. Only have one head",
+      "6. Shift Click to move detached limb chains",
+      "7. You cannot start if there are detached limbs",
   ]
 
   start_button_rect = pygame.Rect(WIDTH - 130, HEIGHT - 70, 110, 50)
-  checkbox_rect = pygame.Rect(12, 395, 18, 18)
+  checkbox_rect = pygame.Rect(12, 535, 18, 18)
   show_points_checked = True
 
   placed_parts = []
@@ -377,7 +410,7 @@ def start_character_creater():
                   "parent_joint": None,
                   "my_joint": None,
               }
-              
+
               # Instantly check for snap if it's a limb dropped onto the canvas
               if dragging_type in ["rect_limb", "long_rect_limb", "leg"]:
                 part_pts = get_world_points(new_part)
@@ -572,13 +605,26 @@ def start_character_creater():
     pygame.draw.rect(screen, (50, 50, 50), (0, 0, UI_WIDTH, HEIGHT))
     pygame.draw.line(screen, (200, 200, 200), (UI_WIDTH, 0), (UI_WIDTH, HEIGHT), 3)
 
-    font = pygame.font.SysFont(None, 19)
+    font = pygame.font.SysFont(None, 18)
+    tut_font = pygame.font.SysFont(None, 15)
     section_font = pygame.font.SysFont(None, 22, bold=True)
 
+    # Render "Tutorial" Header & Wrapped Instructions
+    tut_label = section_font.render("Tutorial", True, (255, 215, 0))
+    screen.blit(tut_label, (15, 10))
+
+    y_offset = 32
+    for step in tutorial_steps:
+      y_offset = render_wrapped_text(
+          screen, step, tut_font, (220, 220, 220), 15, y_offset, UI_WIDTH - 30, line_spacing=2
+      )
+      y_offset += 2
+
+    # Render "Heads" & "Limbs" Headers
     heads_label = section_font.render("Heads", True, (200, 200, 200))
     limbs_label = section_font.render("Limbs", True, (200, 200, 200))
-    screen.blit(heads_label, (20, 25))
-    screen.blit(limbs_label, (20, 175))
+    screen.blit(heads_label, (15, 270))
+    screen.blit(limbs_label, (15, 405))
 
     for item in sidebar_items:
       pygame.draw.rect(screen, (80, 80, 80), item["rect"], border_radius=6)
@@ -586,24 +632,20 @@ def start_character_creater():
 
       if item["type"] == "circle_body":
         text = font.render("Circle Head", True, (255, 255, 255))
-        screen.blit(body_thumb, (item["rect"].x + 8, item["rect"].centery - 20))
-        screen.blit(text, (item["rect"].x + 55, item["rect"].centery - 8))
+        screen.blit(body_thumb, (item["rect"].x + 6, item["rect"].centery - 20))
+        screen.blit(text, (item["rect"].x + 50, item["rect"].centery - 8))
       elif item["type"] == "triangle_body":
         text = font.render("Triangle Head", True, (255, 255, 255))
-        screen.blit(triangle_thumb, (item["rect"].x + 8, item["rect"].centery - 20))
-        screen.blit(text, (item["rect"].x + 55, item["rect"].centery - 8))
+        screen.blit(triangle_thumb, (item["rect"].x + 6, item["rect"].centery - 20))
+        screen.blit(text, (item["rect"].x + 50, item["rect"].centery - 8))
       elif item["type"] == "rect_limb":
         text = font.render("Rect Limb", True, (255, 255, 255))
-        screen.blit(rect_thumb, (item["rect"].x + 12, item["rect"].centery - 25))
-        screen.blit(text, (item["rect"].x + 55, item["rect"].centery - 8))
+        screen.blit(rect_thumb, (item["rect"].x + 10, item["rect"].centery - 22))
+        screen.blit(text, (item["rect"].x + 50, item["rect"].centery - 8))
       elif item["type"] == "long_rect_limb":
         text = font.render("Long Limb", True, (255, 255, 255))
-        screen.blit(long_thumb, (item["rect"].x + 15, item["rect"].centery - 25))
-        screen.blit(text, (item["rect"].x + 55, item["rect"].centery - 8))
-      elif item["type"] == "leg":
-        text = font.render("Leg Part", True, (255, 255, 255))
-        screen.blit(leg_thumb, (item["rect"].x + 10, item["rect"].centery - 20))
-        screen.blit(text, (item["rect"].x + 55, item["rect"].centery - 8))
+        screen.blit(long_thumb, (item["rect"].x + 12, item["rect"].centery - 22))
+        screen.blit(text, (item["rect"].x + 50, item["rect"].centery - 8))
 
     # Checkbox Rendering
     pygame.draw.rect(screen, (255, 255, 255), checkbox_rect, border_radius=4)
