@@ -2,6 +2,7 @@
 import pygame
 import pickle
 
+from Game.main_menu import main_menu
 from Game.char_adapter import convert_ui_parts
 from Game.char_creator import start_character_creater, HEIGHT, WIDTH
 from machineLearning.guyMorphology import GuyMorphology
@@ -15,20 +16,31 @@ GENERATIONS = 100
 def main():
     pygame.init()
 
-    # Window setup
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    while True:
+        # Window setup
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
-    placed_parts, straight_angles = start_character_creater(screen)
-    converted_guy = convert_ui_parts(placed_parts, straight_angles)
-    config = create_neat_config(GuyMorphology(converted_guy.guy), "machineLearning/ml_config")
-    evo_manager = EvolutionManager(config)
-    winner = evo_manager.run(converted_guy, STEPS, DT, GENERATIONS)
+        result = main_menu(screen)
 
-    with open("winner.pkl", "wb") as file:
-        pickle.dump(winner, file)
-    print("winner")
-    
-    run_winner = evo_manager.run_winner(winner, converted_guy, STEPS, DT, screen)
+        if result == "Exit":
+            break
+
+        elif result == "New Alien":
+            placed_parts, straight_angles = start_character_creater(screen)
+            converted_guy = convert_ui_parts(placed_parts, straight_angles)
+            config = create_neat_config(GuyMorphology(converted_guy.guy), "machineLearning/ml_config")
+            evo_manager = EvolutionManager(config)
+            winner = evo_manager.run(converted_guy, STEPS, DT, GENERATIONS)
+
+            with open("winner.pkl", "wb") as file:
+                pickle.dump(winner, file)
+            print("winner")
+
+            evo_manager.run_winner(winner, converted_guy, STEPS, DT, screen)
+
+        else:
+            pass
+
 
 
 if __name__ == "__main__":
