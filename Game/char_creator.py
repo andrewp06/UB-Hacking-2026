@@ -173,10 +173,10 @@ def start_character_creater(screen=None):
   # UI Sidebar dimensions
   UI_WIDTH = 200
 
-  # Load UI Bar Background Image ("UIbartest.png")
+  # Load UI Bar Background Image ("UIbar.png")
   try:
     ui_bg_img = pygame.image.load(
-        os.path.join(script_dir, "UIbartest.png")
+        os.path.join(script_dir, "UIbar.png")
     ).convert()
     ui_bg_img = pygame.transform.scale(ui_bg_img, (UI_WIDTH, HEIGHT))
   except FileNotFoundError:
@@ -653,7 +653,7 @@ def start_character_creater(screen=None):
     else:
       pygame.draw.rect(screen, (240, 240, 240), (UI_WIDTH, 0, WIDTH - UI_WIDTH, HEIGHT))
 
-    # 2. DRAW UI SIDEBAR BACKGROUND (UIbartest.png) & SEPARATOR
+    # 2. DRAW UI SIDEBAR BACKGROUND (UIbar.png) & SEPARATOR
     if ui_bg_img:
       screen.blit(ui_bg_img, (0, 0))
     else:
