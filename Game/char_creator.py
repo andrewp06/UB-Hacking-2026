@@ -5,7 +5,7 @@ import pygame
 
 # Define local connection points relative to part center (0,0)
 BODY_LOCAL_POINTS = []
-WIDTH, HEIGHT = 900, 700
+
 TRIANGLE_LOCAL_POINTS = [
     pygame.math.Vector2(0, -38),   # Top vertex joint
     pygame.math.Vector2(52, 52),   # Bottom-right vertex joint
@@ -164,6 +164,12 @@ def render_wrapped_text(surface, text, font, color, x, y, max_width, line_spacin
 
 def start_character_creater(screen=None):
 
+  pygame.init()
+
+  # Window setup
+  WIDTH, HEIGHT = 900, 700
+  if screen is None:
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
   pygame.display.set_caption("Character Creator - Instant Snap on Spawn")
   clock = pygame.time.Clock()
 
@@ -172,6 +178,15 @@ def start_character_creater(screen=None):
 
   # UI Sidebar dimensions
   UI_WIDTH = 200
+
+  # Load UI Bar Background Image ("UIbartest.png")
+  try:
+    ui_bg_img = pygame.image.load(
+        os.path.join(script_dir, "UIbartest.png")
+    ).convert()
+    ui_bg_img = pygame.transform.scale(ui_bg_img, (UI_WIDTH, HEIGHT))
+  except FileNotFoundError:
+    ui_bg_img = None
 
   # Load Canvas Background Image ("PlanetBackground.png")
   try:
@@ -370,7 +385,7 @@ def start_character_creater(screen=None):
                       p for p in placed_parts if p["type"] in ["circle_body", "triangle_body"]
                   ]
                   if len(existing_bodies) >= 1:
-                    error_message = "*Two Heads Cannot Be Added*"
+                    error_message = "*1 Head Allowed*"
                     error_timer = 300
                     break
 
@@ -644,8 +659,11 @@ def start_character_creater(screen=None):
     else:
       pygame.draw.rect(screen, (240, 240, 240), (UI_WIDTH, 0, WIDTH - UI_WIDTH, HEIGHT))
 
-    # 2. DRAW UI SIDEBAR BACKGROUND & ORGANIZED SECTIONS
-    pygame.draw.rect(screen, (50, 50, 50), (0, 0, UI_WIDTH, HEIGHT))
+    # 2. DRAW UI SIDEBAR BACKGROUND (UIbartest.png) & SEPARATOR
+    if ui_bg_img:
+      screen.blit(ui_bg_img, (0, 0))
+    else:
+      pygame.draw.rect(screen, (50, 50, 50), (0, 0, UI_WIDTH, HEIGHT))
     pygame.draw.line(screen, (200, 200, 200), (UI_WIDTH, 0), (UI_WIDTH, HEIGHT), 3)
 
     font = pygame.font.SysFont(None, 18)
