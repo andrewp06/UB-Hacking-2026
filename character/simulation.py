@@ -13,7 +13,8 @@ from .head import Head
 class SimulationResult:
     distance: float
     survival_time: float
-    fell: bool 
+    fell: bool
+
 
 class Simulation:
     def __init__(
@@ -22,6 +23,7 @@ class Simulation:
         positions: list[tuple[float, float]],
         motor_speeds: list[float] | None = None,
         joint_anchors: list[tuple[float, float]] | None = None,
+        initial_angles: list[float] | None = None,
         gravity: float = -981.0,
         duration: float = 10.0,
         motor_max_force: float = 100000.0,
@@ -40,6 +42,11 @@ class Simulation:
         self.joint_anchors = (
             None if joint_anchors is None else list(joint_anchors)
         )
+        # Initial body rotations are in radians, matching guy.get_shapes().
+        self.initial_angles = (
+            [0.0] * len(self.shapes)
+            if initial_angles is None else list(initial_angles)
+        )
         self.gravity = float(gravity)
         self.duration = float(duration)
         self.motor_max_force = float(motor_max_force)
@@ -48,6 +55,10 @@ class Simulation:
             raise TypeError("The head must be a Circle")
         if len(self.positions) != len(self.shapes):
             raise ValueError("Provide one position for each shape")
+        if len(self.initial_angles) != len(self.shapes):
+            raise ValueError("Provide one initial angle (radians) per shape")
+        if not all(math.isfinite(float(a)) for a in self.initial_angles):
+            raise ValueError("Initial angles must be finite")
         if len(self.motor_speeds) != len(self.joints):
             raise ValueError("Provide one motor speed for each joint")
         if self.joint_anchors is not None and len(self.joint_anchors) != len(self.joints):
@@ -103,7 +114,7 @@ class Simulation:
         self.distance = 0.0
         self.fell = False
 
-        for part, position in zip(self.shapes, self.positions):
+        for part, position, angle in zip(self.shapes, self.positions, self.initial_angles):
             mass = part.get_mass()
             if isinstance(part, Circle):
                 radius = part.get_radius()
@@ -116,6 +127,9 @@ class Simulation:
                 body = pymunk.Body(mass, inertia)
                 hitbox = pymunk.Poly.create_box(body, size)
             body.position = position
+            # Must set angle BEFORE creating pivots, so the chosen
+            # world-space anchors are converted into correct local anchors.
+            body.angle = angle
             hitbox.friction = 1.0
             hitbox.elasticity = 0.0
             hitbox.filter = pymunk.ShapeFilter(group=1)
