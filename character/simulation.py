@@ -333,7 +333,7 @@ class Simulation:
             frame_time = 0.0
             if pygame is not None:
                 draw()
-            for step in range(steps):
+            for _ in range(steps):
                 if pygame is not None:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
@@ -359,30 +359,45 @@ class Simulation:
             if pygame is not None:
                 draw()
 
-                button = pygame.Rect(400, 560, 200, 50)
+                rerun_button = pygame.Rect(290, 560, 200, 50)
+                menu_button = pygame.Rect(510, 560, 200, 50)
 
                 waiting = True
                 rerun = False
 
                 while waiting:
+                    mouse_pos = pygame.mouse.get_pos()
+
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             waiting = False
 
-                        elif event.type == pygame.MOUSEBUTTONDOWN:
-                            if button.collidepoint(event.pos):
+                        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                            if rerun_button.collidepoint(event.pos):
                                 rerun = True
                                 waiting = False
+
+                            elif menu_button.collidepoint(event.pos):
+                                return "main menu"
 
                         elif event.type == pygame.KEYDOWN and event.key in (
                             pygame.K_ESCAPE, pygame.K_SPACE
                         ):
                             waiting = False
 
-                    pygame.draw.rect(screen, (60, 150, 90), button, border_radius=8)
+                    # Rerun button
+                    rerun_color = (75, 170, 100) if rerun_button.collidepoint(mouse_pos) else (60, 150, 90)
+                    pygame.draw.rect(screen, rerun_color, rerun_button, border_radius=8)
 
                     text = font.render("Rerun Simulation", True, (255, 255, 255))
-                    screen.blit(text, text.get_rect(center=button.center))
+                    screen.blit(text, text.get_rect(center=rerun_button.center))
+
+                    # Main menu button
+                    menu_color = (75, 125, 180) if menu_button.collidepoint(mouse_pos) else (50, 85, 125)
+                    pygame.draw.rect(screen, menu_color, menu_button, border_radius=8)
+
+                    text = font.render("Main Menu", True, (255, 255, 255))
+                    screen.blit(text, text.get_rect(center=menu_button.center))
 
                     pygame.display.flip()
                     clock.tick(30)
