@@ -302,6 +302,10 @@ class Simulation:
                 ground_image, screen.get_size()
             )
 
+            short_limb_image = pygame.image.load(
+                game_dir + "shortlimb.png"
+            ).convert_alpha()
+
             head_image = None
             if isinstance(self.head, Circle):
                 head_image = pygame.image.load(
@@ -319,6 +323,7 @@ class Simulation:
                 head_image = pygame.transform.smoothscale(
                     head_image, (size, size)
                 )
+
 
         def draw():
             if pygame is None:
@@ -359,6 +364,30 @@ class Simulation:
                         screen, color, screen_point(body.position),
                         max(1, round(hitbox.radius)),
                     )
+                    
+                elif (
+                    isinstance(part, Rectangle)
+                    and part.get_width() == 120
+                ):
+                    limb_size = (
+                        max(1, round(part.get_length())),
+                        max(1, round(part.get_width())),
+                    )
+
+                    limb_sprite = pygame.transform.smoothscale(
+                        short_limb_image, limb_size
+                    )
+
+                    limb_sprite = pygame.transform.rotate(
+                        limb_sprite, math.degrees(body.angle)
+                    )
+
+                    limb_rect = limb_sprite.get_rect(
+                        center=screen_point(body.position)
+                    )
+
+                    screen.blit(limb_sprite, limb_rect)
+
                 else:
                     points = [
                         screen_point(body.local_to_world(vertex))
