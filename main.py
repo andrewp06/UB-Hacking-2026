@@ -30,7 +30,8 @@ def main():
             converted_guy = convert_ui_parts(placed_parts, straight_angles)
             config = create_neat_config(GuyMorphology(converted_guy.guy), "machineLearning/ml_config")
             evo_manager = EvolutionManager(config)
-            winner = evo_manager.run(converted_guy, STEPS, DT, GENERATIONS)
+
+            winner = evo_manager.run(screen, converted_guy, STEPS, DT, GENERATIONS)
 
             with open("winner.pkl", "wb") as file:
                 pickle.dump(winner, file)

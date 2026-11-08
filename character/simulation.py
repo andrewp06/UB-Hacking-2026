@@ -306,6 +306,10 @@ class Simulation:
                 game_dir + "shortlimb.png"
             ).convert_alpha()
 
+            long_limb_image = pygame.image.load(
+                game_dir + "longlimb.png"
+            ).convert_alpha()
+
             head_image = None
             if isinstance(self.head, Circle):
                 head_image = pygame.image.load(
@@ -376,6 +380,29 @@ class Simulation:
 
                     limb_sprite = pygame.transform.smoothscale(
                         short_limb_image, limb_size
+                    )
+
+                    limb_sprite = pygame.transform.rotate(
+                        limb_sprite, math.degrees(body.angle)
+                    )
+
+                    limb_rect = limb_sprite.get_rect(
+                        center=screen_point(body.position)
+                    )
+
+                    screen.blit(limb_sprite, limb_rect)
+
+                elif (
+                    isinstance(part, Rectangle)
+                    and part.get_width() == 240
+                ):
+                    limb_size = (
+                        max(1, round(part.get_length())),
+                        max(1, round(part.get_width())),
+                    )
+
+                    limb_sprite = pygame.transform.smoothscale(
+                        long_limb_image, limb_size
                     )
 
                     limb_sprite = pygame.transform.rotate(
