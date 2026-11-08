@@ -20,8 +20,8 @@ class Joint:
     def get_min_angle(self):
         return self.minAngle
 
-    def get_shape_Parent(self):
+    def get_shape_parent(self):
         return self.ParentShape
 
-    def get_shape_Child(self):
+    def get_shape_child(self):
         return self.ChildShape

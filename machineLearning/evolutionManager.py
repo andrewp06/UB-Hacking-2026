@@ -1,5 +1,9 @@
+from functools import partial
+
 import neat
 from character.simulation import Simulation
+import multiprocessing
+
 class EvolutionManager:
     def __init__(self, config):
         self.config = config
@@ -9,51 +13,60 @@ class EvolutionManager:
         self.best_genome = None
         self.best_fitness = float("-inf")
 
-    def evaluate_generation(self, fitness_function):
-        genomes = list(self.population.population.items())
+    def run(self, convertedAlien, steps, dt, generations):
 
-        for _, genome in genomes:
-            genome.fitness = fitness_function(genome)
+        fitness_function = partial(
+            evaluate_genome,
+            convertedAlien=convertedAlien,
+            steps=steps,
+            dt=dt
+        )
 
-            if genome.fitness > self.best_fitness:
-                self.best_fitness = genome.fitness
-                self.best_genome = genome
+        workers = 4
 
-        self.generation += 1
+        with neat.ParallelEvaluator(
+            workers, fitness_function
+        ) as evaluator:
 
-    def mock_evaluation(genomes, config):
-        for _, genome in genomes:
-            genome.fitness = 0.0
+            winner = self.population.run(
+                evaluator.evaluate,
+                generations
+            )
 
-
-def evaluate_genomes(
-        genomes,
-        config,
-        convertedAlien,
-        simulation_steps,
-        dt):
-    
-    for _, genome in genomes:
-
+        return winner
+    def run_winner(self, winner, convertedAlien, steps, dt):
         network = neat.nn.FeedForwardNetwork.create(
-            genome, config
+            winner, self.config
         )
 
         simulation = Simulation(convertedAlien)
 
-        #simulate
-        for _ in range(simulation_steps):
+        result = simulation.run(
+            steps=steps,
+            dt=dt,
+            render=True,
+            network=network
+        )
 
-            inputs = simulation.get_neural_inputs() #there needs to be something like this defined for the physics to get the infor for each joint
+        return result
 
-            outputs = network.activate(inputs)
 
-            for joint, output in zip(convertedAlien.guy.get_joints(), outputs):
-                joint.set_joint_torque(joint, output)
+def evaluate_genome(genome, config, convertedAlien, steps, dt):
+    network = neat.nn.FeedForwardNetwork.create(genome, config)
 
-            simulation.step(dt)
-        result = simulation.get_result()
-        if(result.fell):
-            result / 1.1
-        genome.fitness = result.distance
+    simulation = Simulation(convertedAlien)
 
+    for _ in range(steps):
+        inputs = simulation.get_network_inputs()
+        outputs = network.activate(inputs)
+
+        for joint, output in zip(simulation.guy.get_joints(), outputs):
+            simulation.set_joint_torque(joint, output)
+
+        result = simulation.step(dt)
+
+        if result.fell:
+            break
+
+    result = simulation.get_result()
+    return float(result.distance)
