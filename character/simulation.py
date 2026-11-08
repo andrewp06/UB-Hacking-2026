@@ -1,5 +1,6 @@
 import math
 from dataclasses import dataclass
+from pathlib import Path
 
 import pymunk
 
@@ -284,10 +285,51 @@ class Simulation:
             clock = pygame.time.Clock()
             font = pygame.font.Font(None, 25)
 
+            # Load assets relative to this file (Game/).
+            game_dir = str(Path(__file__).resolve().parent.parent / "Game") + "/"
+            background_image = pygame.image.load(
+                game_dir + "PlanetBackground.png"
+            ).convert()
+            background_image = pygame.transform.scale(
+                background_image, screen.get_size()
+            )
+
+            # The ground image is a transparent, screen-sized layer.
+            ground_image = pygame.image.load(
+                game_dir + "ground.png"
+            ).convert_alpha()
+            ground_image = pygame.transform.scale(
+                ground_image, screen.get_size()
+            )
+
+            short_limb_image = pygame.image.load(
+                game_dir + "shortlimb.png"
+            ).convert_alpha()
+
+            head_image = None
+            if isinstance(self.head, Circle):
+                head_image = pygame.image.load(
+                    game_dir + "circleheadwhiteoutline.png"
+                ).convert_alpha()
+                diameter = max(1, round(self.head.get_radius() * 2))
+                head_image = pygame.transform.smoothscale(
+                    head_image, (diameter, diameter)
+                )
+            elif isinstance(self.head, Triangle):
+                head_image = pygame.image.load(
+                    game_dir + "trianglehead.png"
+                ).convert_alpha()
+                size = max(1, round(self.head.get_height()))
+                head_image = pygame.transform.smoothscale(
+                    head_image, (size, size)
+                )
+
+
         def draw():
             if pygame is None:
                 return
-            screen.fill((23, 29, 42))
+
+            screen.blit(background_image, (0, 0))
             width, height = screen.get_size()
             floor_y = height - 85
             camera_x = self.tracked.position.x - width * 0.4
@@ -295,26 +337,57 @@ class Simulation:
             def screen_point(pos):
                 return (int(pos.x - camera_x), int(floor_y - pos.y))
 
-            pygame.draw.line(
-                screen, (165, 180, 198),
-                (0, floor_y + self.ground_radius),
-                (width, floor_y + self.ground_radius), 10,
-            )
+            # Scroll the ground with the world/camera.
+            ground_offset = int(-camera_x) % width
+            screen.blit(ground_image, (ground_offset - width, 0))
+            screen.blit(ground_image, (ground_offset, 0))
+
+            # Draw joint markers.
             for constraint in self.space.constraints:
                 if isinstance(constraint, pymunk.PivotJoint):
                     pos = constraint.a.local_to_world(constraint.anchor_a)
                     pygame.draw.circle(
                         screen, (255, 185, 70), screen_point(pos), 5
                     )
+
+            # Draw all body parts except the head.
             for part in self.shapes:
+                if part is self.head:
+                    continue
+
                 body = self.bodies[id(part)]
                 hitbox = self.hitboxes[id(part)]
-                color = (240, 99, 99) if part is self.head else (85, 185, 230)
+                color = (85, 185, 230)
+
                 if isinstance(hitbox, pymunk.Circle):
                     pygame.draw.circle(
                         screen, color, screen_point(body.position),
                         max(1, round(hitbox.radius)),
                     )
+                    
+                elif (
+                    isinstance(part, Rectangle)
+                    and part.get_width() == 120
+                ):
+                    limb_size = (
+                        max(1, round(part.get_length())),
+                        max(1, round(part.get_width())),
+                    )
+
+                    limb_sprite = pygame.transform.smoothscale(
+                        short_limb_image, limb_size
+                    )
+
+                    limb_sprite = pygame.transform.rotate(
+                        limb_sprite, math.degrees(body.angle)
+                    )
+
+                    limb_rect = limb_sprite.get_rect(
+                        center=screen_point(body.position)
+                    )
+
+                    screen.blit(limb_sprite, limb_rect)
+
                 else:
                     points = [
                         screen_point(body.local_to_world(vertex))
@@ -322,13 +395,30 @@ class Simulation:
                     ]
                     pygame.draw.polygon(screen, color, points)
                     pygame.draw.polygon(screen, (240, 240, 240), points, 2)
+
+            # Draw the head LAST so it appears in front.
+            if head_image is not None:
+                body = self.bodies[id(self.head)]
+                sprite = head_image
+
+                if isinstance(self.head, Triangle):
+                    sprite = pygame.transform.rotate(
+                        head_image, math.degrees(body.angle)
+                    )
+
+                sprite_rect = sprite.get_rect(
+                    center=screen_point(body.position)
+                )
+                screen.blit(sprite, sprite_rect)
+
+            # Draw statistics.
             stats = (
                 f"Time: {self.elapsed:.2f}s   Distance: {self.distance:.1f} "
                 f"Head hit ground: {self.fell}"
             )
             screen.blit(font.render(stats, True, (240, 240, 245)), (15, 15))
-            pygame.display.flip()
 
+            pygame.display.flip()
         try:
             frame_time = 0.0
             if pygame is not None:

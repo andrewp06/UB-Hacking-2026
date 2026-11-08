@@ -36,8 +36,9 @@ def main():
                 pickle.dump(winner, file)
             print("winner")
 
-            evo_manager.run_winner(winner, converted_guy, STEPS, DT, screen)
-
+            result = evo_manager.run_winner(winner, converted_guy, STEPS, DT, screen)
+            if result != "main menu":
+                break
         else:
             pass
 
