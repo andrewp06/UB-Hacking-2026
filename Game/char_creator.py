@@ -459,3 +459,7 @@ def start_character_creater():
     clock.tick(60)
 
   pygame.quit()
+
+
+if __name__ == "__main__":
+  start_character_creater()
