@@ -5,7 +5,7 @@ import pygame
 
 # Define local connection points relative to part center (0,0)
 BODY_LOCAL_POINTS = []
-WIDTH, HEIGHT = 900, 700
+
 TRIANGLE_LOCAL_POINTS = [
     pygame.math.Vector2(0, -38),   # Top vertex joint
     pygame.math.Vector2(52, 52),   # Bottom-right vertex joint
@@ -162,8 +162,14 @@ def render_wrapped_text(surface, text, font, color, x, y, max_width, line_spacin
   return current_y
 
 
-def start_character_creater(screen):
+def start_character_creater(screen=None):
 
+  pygame.init()
+
+  # Window setup
+  WIDTH, HEIGHT = 900, 700
+  if screen is None:
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
   pygame.display.set_caption("Character Creator - Instant Snap on Spawn")
   clock = pygame.time.Clock()
 
@@ -185,7 +191,7 @@ def start_character_creater(screen):
   # 1. Circle Body Asset
   try:
     body_img = pygame.image.load(
-        os.path.join(script_dir, "circlehead.png")
+        os.path.join(script_dir, "circleheadwhiteoutline.png")
     ).convert_alpha()
     body_img = pygame.transform.scale(body_img, (160, 160))
     body_thumb = pygame.transform.scale(body_img, (40, 40))
@@ -194,7 +200,7 @@ def start_character_creater(screen):
     pygame.draw.circle(body_img, (0, 162, 232), (80, 80), 80)
     body_thumb = pygame.transform.scale(body_img, (40, 40))
 
-  # 2. Triangle Body Asset (Light Purple)
+  # 2. Triangle Body Asset
   try:
     triangle_img = pygame.image.load(
         os.path.join(script_dir, "triangleheadwhiteoutline.png")
@@ -220,7 +226,7 @@ def start_character_creater(screen):
     pygame.draw.rect(rect_img, (34, 177, 76), (0, 0, 50, 120), border_radius=6)
     rect_thumb = pygame.transform.scale(rect_img, (20, 50))
 
-  # 4. Long Rect Limb Asset (Replaced with longlimb.png)
+  # 4. Long Rect Limb Asset
   try:
     long_img = pygame.image.load(
         os.path.join(script_dir, "longlimb.png")
@@ -254,9 +260,6 @@ def start_character_creater(screen):
     elif ptype == "leg":
       return leg_img
     return None
-
-  # UI Sidebar & Button dimensions
-  UI_WIDTH = 200
 
   # Organized Sidebar Items
   sidebar_items = [
@@ -641,7 +644,13 @@ def start_character_creater(screen):
     # --- DRAWING / RENDERING ---
     screen.fill((240, 240, 240))
 
-    # 1. DRAW UI SIDEBAR BACKGROUND & ORGANIZED SECTIONS
+    # 1. DRAW CANVAS BACKGROUND (PlanetBackground.png behind building area)
+    if canvas_bg_img:
+      screen.blit(canvas_bg_img, (UI_WIDTH, 0))
+    else:
+      pygame.draw.rect(screen, (240, 240, 240), (UI_WIDTH, 0, WIDTH - UI_WIDTH, HEIGHT))
+
+    # 2. DRAW UI SIDEBAR BACKGROUND & ORGANIZED SECTIONS
     pygame.draw.rect(screen, (50, 50, 50), (0, 0, UI_WIDTH, HEIGHT))
     pygame.draw.line(screen, (200, 200, 200), (UI_WIDTH, 0), (UI_WIDTH, HEIGHT), 3)
 
@@ -795,7 +804,7 @@ def start_character_creater(screen):
       rot_rect = rot_img.get_rect(center=(x + c_off.x, y + c_off.y))
       surface.blit(rot_img, rot_rect.topleft)
 
-    # 2. DRAW PLACED PARTS (Split into Limbs first, then Bodies on top)
+    # 3. DRAW PLACED PARTS (Split into Limbs first, then Bodies on top)
     limb_parts = [
         (idx, p) for idx, p in enumerate(placed_parts) if p["type"] not in ["circle_body", "triangle_body"]
     ]
@@ -808,7 +817,7 @@ def start_character_creater(screen):
     for idx, part in body_parts:
       draw_part(screen, part, idx)
 
-    # 3. DRAW DESTRUCTION / POP ANIMATIONS & FADE OUTS
+    # 4. DRAW DESTRUCTION / POP ANIMATIONS & FADE OUTS
     for fx in destruction_effects[:]:
       progress = 1.0 - (fx["timer"] / 20.0)
       alpha = int(255 * (1.0 - progress))
@@ -836,7 +845,7 @@ def start_character_creater(screen):
       if fx["timer"] <= 0:
         destruction_effects.remove(fx)
 
-    # 4. DRAW PREVIEW OF NEW ITEM BEING DRAGGED FROM SIDEBAR
+    # 5. DRAW PREVIEW OF NEW ITEM BEING DRAGGED FROM SIDEBAR
     if dragging_type:
       preview_part = {
           "type": dragging_type,
@@ -850,6 +859,8 @@ def start_character_creater(screen):
 
     pygame.display.flip()
     clock.tick(60)
+
+  pygame.quit()
 
 
 if __name__ == "__main__":
