@@ -225,10 +225,10 @@ def start_character_creater():
     pygame.draw.rect(rect_img, (34, 177, 76), (0, 0, 50, 120), border_radius=6)
     rect_thumb = pygame.transform.scale(rect_img, (20, 50))
 
-  # 4. Long Rect Limb Asset
+  # 4. Long Rect Limb Asset (Replaced with longlimb.png)
   try:
     long_img = pygame.image.load(
-        os.path.join(script_dir, "test_long_rect_limb.png")
+        os.path.join(script_dir, "longlimb.png")
     ).convert_alpha()
     long_img = pygame.transform.scale(long_img, (50, 240))
     long_thumb = pygame.transform.scale(long_img, (18, 55))
