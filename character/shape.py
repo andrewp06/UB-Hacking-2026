@@ -14,4 +14,4 @@ class Shape:
         return self.mass
 
     def set_mass(self, mass:float):
-        self.__mass = mass
+        self.mass = mass
