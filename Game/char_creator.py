@@ -330,10 +330,19 @@ def start_character_creater():
                 can_start = True
 
             if can_start:
-              print("Validation Successful! Returning placed_parts:")
-              for p in placed_parts:
-                print(p)
-              return placed_parts
+              print("Validation Successful! Returning placed_parts and straight_angles:")
+              straight_angles = []
+              for i, p in enumerate(placed_parts):
+                if p["parent"] is not None:
+                  parent_part = placed_parts[p["parent"]]
+                  s_angle = get_straight_out_angle(
+                      parent_part, p["parent_joint"], p, p["my_joint"]
+                  )
+                  straight_angles.append(s_angle)
+                else:
+                  straight_angles.append(0)
+
+              return placed_parts, straight_angles
             else:
               error_message = "*Rules Not Followed*"
               error_timer = 300  # 5 seconds at 60 FPS
