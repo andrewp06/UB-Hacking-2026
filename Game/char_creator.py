@@ -170,10 +170,10 @@ def start_character_creater(screen):
   # Load assets and scale cleanly for pixel art
   script_dir = os.path.dirname(__file__)
 
-  # 1. Circle Body Asset
+  # 1. Circle Body Asset (Replaced with circlehead.png)
   try:
     body_img = pygame.image.load(
-        os.path.join(script_dir, "test_body.png")
+        os.path.join(script_dir, "circlehead.png")
     ).convert_alpha()
     body_img = pygame.transform.scale(body_img, (160, 160))
     body_thumb = pygame.transform.scale(body_img, (40, 40))
