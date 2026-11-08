@@ -4,9 +4,10 @@ import neat
 from character.simulation import Simulation
 
 class EvolutionManager:
-    def __init__(self, config):
+    def __init__(self, config, baseUrl):
         self.config = config
         self.population = neat.Population(config)
+        self.baseUrl = baseUrl
 
         self.generation = 0
         self.best_genome = None
@@ -26,7 +27,7 @@ class EvolutionManager:
         workers = 4
 
         # Load loading bar image
-        loading_image = pygame.image.load("Game/loadingbar.png").convert()
+        loading_image = pygame.image.load(str(self.baseUrl/"Game/loadingbar.png")).convert()
 
         width, height = screen.get_size()
 

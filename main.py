@@ -62,7 +62,7 @@ def main():
                 str(get_base_dir() /"machineLearning/ml_config")
             )
 
-            evo_manager = EvolutionManager(config)
+            evo_manager = EvolutionManager(config, get_base_dir())
 
             winner = evo_manager.run(
                 screen,
