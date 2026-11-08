@@ -539,7 +539,7 @@ class Simulation:
                     )
                     pygame.draw.rect(screen, remake_color, remake_button, border_radius=8)
 
-                    text = font.render("Change Generation Settings", True, (255, 255, 255))
+                    text = font.render("Change Settings", True, (255, 255, 255))
                     screen.blit(text, text.get_rect(center=remake_button.center))
 
                     pygame.display.flip()
