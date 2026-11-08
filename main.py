@@ -1,4 +1,8 @@
 
+import multiprocessing
+from pathlib import Path
+import sys
+
 import pygame
 import pickle
 
@@ -12,6 +16,14 @@ from machineLearning.dynamicConfig import create_neat_config
 from machineLearning.evolutionManager import EvolutionManager
 
 DT = 1/60
+
+
+
+def get_base_dir() -> Path:
+  # Resolves to _MEIPASS inside the .app, or your project root locally
+  if hasattr(sys, "_MEIPASS"):
+    return Path(sys._MEIPASS)
+  return Path(__file__).resolve()
 
 def main():
     pygame.init()
@@ -47,7 +59,7 @@ def main():
 
             config = create_neat_config(
                 GuyMorphology(converted_guy.guy),
-                "machineLearning/ml_config"
+                str(get_base_dir() /"machineLearning/ml_config")
             )
 
             evo_manager = EvolutionManager(config)
@@ -75,4 +87,7 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()
+
+
