@@ -321,7 +321,7 @@ class Simulation:
                 )
             elif isinstance(self.head, Triangle):
                 head_image = pygame.image.load(
-                    game_dir + "trianglehead.png"
+                    game_dir + "triangleheadwhiteoutline.png"
                 ).convert_alpha()
                 size = max(1, round(self.head.get_height()))
                 head_image = pygame.transform.smoothscale(
@@ -478,9 +478,9 @@ class Simulation:
             if pygame is not None:
                 draw()
 
-                rerun_button = pygame.Rect(180, 560, 200, 50)
-                menu_button = pygame.Rect(400, 560, 200, 50)
-                remake_button = pygame.Rect(620, 560, 200, 50)
+                rerun_button = pygame.Rect(130, 250, 200, 50)
+                menu_button = pygame.Rect(350, 250, 200, 50)
+                remake_button = pygame.Rect(570, 250, 200, 50)
 
                 waiting = True
                 rerun = False
@@ -511,9 +511,9 @@ class Simulation:
 
                     # Rerun button
                     rerun_color = (
-                        (75, 170, 100)
+                        (205, 185, 235)
                         if rerun_button.collidepoint(mouse_pos)
-                        else (60, 150, 90)
+                        else (180, 155, 215)
                     )
                     pygame.draw.rect(screen, rerun_color, rerun_button, border_radius=8)
 
@@ -522,9 +522,9 @@ class Simulation:
 
                     # Main menu button
                     menu_color = (
-                        (75, 125, 180)
+                        (205, 185, 235)
                         if menu_button.collidepoint(mouse_pos)
-                        else (50, 85, 125)
+                        else (180, 155, 215)
                     )
                     pygame.draw.rect(screen, menu_color, menu_button, border_radius=8)
 
@@ -533,15 +533,14 @@ class Simulation:
 
                     # Change Generation Settings button
                     remake_color = (
-                        (180, 135, 65)
+                        (205, 185, 235)
                         if remake_button.collidepoint(mouse_pos)
-                        else (145, 105, 45)
+                        else (180, 155, 215)
                     )
                     pygame.draw.rect(screen, remake_color, remake_button, border_radius=8)
 
-                    text = font.render("Change Generation Settings", True, (255, 255, 255))
+                    text = font.render("Change Settings", True, (255, 255, 255))
                     screen.blit(text, text.get_rect(center=remake_button.center))
-
                     pygame.display.flip()
                     clock.tick(30)
 
