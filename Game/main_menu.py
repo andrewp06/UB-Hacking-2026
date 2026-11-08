@@ -86,10 +86,10 @@ def main_menu(screen):
     # Preserve original button positions.
     buttons = {
         "New Alien": pygame.Rect(
-            width // 2 - 150, height // 2 - 60, 300, 60
+            width // 2 - 150, height // 2, 300, 60
         ),
         "Exit": pygame.Rect(
-            width // 2 - 150, height // 2 + 100, 300, 60
+            width // 2 - 150, height // 2 + 75, 300, 60
         ),
     }
 
@@ -121,8 +121,9 @@ def main_menu(screen):
             hovered = rect.collidepoint(mouse_pos)
 
             color = (
-                (75, 125, 180) if hovered
-                else (50, 85, 125)
+                (205, 185, 235)
+                if hovered
+                else (180, 155, 215)
             )
 
             pygame.draw.rect(
