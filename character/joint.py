@@ -24,3 +24,6 @@ class Joint:
     
     def get_shape_b(self):
         return self.__shapeB
+
+    def has_shape(self, shape):
+        return shape is self.__shapeA or shape is self.__shapeB
