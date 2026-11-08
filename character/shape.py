@@ -1,12 +1,17 @@
-class Shape:
-    def __init__(self, mass:float):
-        self.__mass = mass
 
-    def get_hitbox():
-        print("Warning, getHitBox has not been overriden")
+from dataclasses import dataclass
+
+
+@dataclass
+class Shape:
+    mass: float
+
+    def get_hitbox(self):
+        print("Warning, get_hitbox has not been overridden")
+        return None
 
     def get_mass(self):
-        return self.__mass
+        return self.mass
 
     def set_mass(self, mass:float):
         self.__mass = mass
