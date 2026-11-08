@@ -23,7 +23,7 @@ def get_base_dir() -> Path:
   # Resolves to _MEIPASS inside the .app, or your project root locally
   if hasattr(sys, "_MEIPASS"):
     return Path(sys._MEIPASS)
-  return Path(__file__).resolve()
+  return Path(__file__).resolve().parent
 
 def main():
     pygame.init()
