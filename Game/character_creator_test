@@ -7,7 +7,7 @@ pygame.init()
 # Window setup
 WIDTH, HEIGHT = 900, 700
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Character Creator - Precise Rotated Joints")
+pygame.display.set_caption("Character Creator - Continuous Frame Joint Sync")
 clock = pygame.time.Clock()
 
 # Load assets and scale cleanly for pixel art
@@ -33,14 +33,16 @@ sidebar_items = [
 ]
 
 # List of placed parts:
-# {'type': str, 'pos': [x, y], 'angle': int, 'parent': body_index or None, 'parent_joint': int, 'my_joint': int}
+# {'type': str, 'pos': [x, y], 'angle': int, 'parent': index or None, 'parent_joint': int, 'my_joint': int}
 placed_parts = []
 
 # Interaction state variables
 dragging_type = None
 dragging_index = None
+drag_mode = None
 drag_offset = [0, 0]
 current_angle = 0
+rotation_angle_offset = 0
 
 # Define local connection points relative to part center (0,0)
 BODY_LOCAL_POINTS = []
@@ -51,16 +53,14 @@ for angle_deg in body_angles:
   by = int(62 * math.sin(rad))
   BODY_LOCAL_POINTS.append(pygame.math.Vector2(bx, by))
 
-# Rect limb: 50x120, Center at (25, 60). Local offsets from center:
 LIMB_LOCAL_POINTS = [
-    pygame.math.Vector2(0, -50),  # Top joint
-    pygame.math.Vector2(0, 50),  # Bottom joint
+    pygame.math.Vector2(0, -50),  # Top joint (Index 0)
+    pygame.math.Vector2(0, 50),  # Bottom joint (Index 1)
 ]
 
-# Leg part: 120x120, Center at (60, 60). Local offsets from center:
 LEG_LOCAL_POINTS = [
-    pygame.math.Vector2(0, -50),  # Top joint
-    pygame.math.Vector2(0, 50),  # Bottom joint
+    pygame.math.Vector2(0, -50),  # Top joint (Index 0)
+    pygame.math.Vector2(0, 50),  # Bottom joint (Index 1)
 ]
 
 
@@ -85,7 +85,6 @@ def get_local_points_list(ptype):
 
 
 def get_world_points(part):
-  """Calculates exact world coordinates of connection points using Pygame Vector2 rotate."""
   ptype = part["type"]
   pos = pygame.math.Vector2(part["pos"])
   angle = part["angle"]
@@ -97,15 +96,52 @@ def get_world_points(part):
   world_pts = []
 
   for offset in local_offsets:
-    # Vector2.rotate rotates counter-clockwise; use -angle to match screen/surface rotation
     rotated_offset = offset.rotate(-angle)
     world_pts.append(center_world + rotated_offset)
 
   return world_pts
 
 
+def get_straight_out_angle(parent_part, parent_joint_idx, child_part, my_joint_idx):
+  """Calculates the datum angle where the child limb points straight outward from the parent part."""
+  parent_pts = get_world_points(parent_part)
+  joint_world_pos = parent_pts[parent_joint_idx]
+
+  if parent_part["type"] == "circle_body":
+    body_center = pygame.math.Vector2(parent_part["pos"]) + get_part_center_offset(
+        parent_part["type"]
+    )
+    radial_dir = joint_world_pos - body_center
+  else:
+    local_pts = get_local_points_list(parent_part["type"])
+    local_offset = local_pts[parent_joint_idx]
+    radial_dir = local_offset.rotate(-parent_part["angle"])
+
+  if radial_dir.length_squared() == 0:
+    radial_dir = pygame.math.Vector2(0, 1)
+  else:
+    radial_dir = radial_dir.normalize()
+
+  if my_joint_idx == 0:
+    base_dir = pygame.math.Vector2(0, 1)
+  else:
+    base_dir = pygame.math.Vector2(0, -1)
+
+  straight_angle = math.degrees(
+      math.atan2(-radial_dir.y, radial_dir.x)
+      - math.atan2(-base_dir.y, base_dir.x)
+  )
+  return straight_angle % 360
+
+
+def clamp_angle_to_range(angle, center_angle, max_range=45):
+  """Clamps an angle within a specified range (+/- max_range) of a center datum angle."""
+  diff = (angle - center_angle + 180) % 360 - 180
+  diff = max(-max_range, min(max_range, diff))
+  return (center_angle + diff) % 360
+
+
 def get_sub_tree(root_idx, parts):
-  """Finds all parts connected to the root part."""
   tree = [root_idx]
   for i, p in enumerate(parts):
     if p.get("parent") == root_idx and i not in tree:
@@ -113,9 +149,28 @@ def get_sub_tree(root_idx, parts):
   return tree
 
 
+def update_attached_children_positions(parts):
+  """Continuously updates every child limb's position each frame to match its parent's joint pin."""
+  for part in parts:
+    if part["parent"] is not None:
+      parent_part = parts[part["parent"]]
+      parent_pts = get_world_points(parent_part)
+      target_pin = parent_pts[part["parent_joint"]]
+
+      # Check where child's connecting joint currently is in world coordinates
+      child_pts = get_world_points(part)
+      current_joint = child_pts[part["my_joint"]]
+
+      # Shift child part so its joint snaps directly onto the parent's pin
+      dx = target_pin.x - current_joint.x
+      dy = target_pin.y - current_joint.y
+      part["pos"][0] += dx
+      part["pos"][1] += dy
+
+
 running = True
 while running:
-  mouse_pos = pygame.mouse.get_pos()
+  mouse_pos = pygame.math.Vector2(pygame.mouse.get_pos())
   keys = pygame.key.get_pressed()
   shift_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
 
@@ -125,7 +180,7 @@ while running:
 
     elif event.type == pygame.MOUSEBUTTONDOWN:
       if event.button == 1:  # Left click
-        if mouse_pos[0] < UI_WIDTH:
+        if mouse_pos.x < UI_WIDTH:
           for item in sidebar_items:
             if item["rect"].collidepoint(mouse_pos):
               dragging_type = item["type"]
@@ -147,25 +202,49 @@ while running:
             part_rect = pygame.Rect(px, py, w, h)
 
             if part_rect.collidepoint(mouse_pos):
-              target_idx = i
-              if part["parent"] is not None and not shift_held:
-                curr = i
-                while placed_parts[curr]["parent"] is not None:
-                  curr = placed_parts[curr]["parent"]
-                target_idx = curr
+              dragging_index = i
 
-              dragging_index = target_idx
-              current_angle = placed_parts[dragging_index]["angle"]
-              r_px, r_py = placed_parts[dragging_index]["pos"]
-              drag_offset = [r_px - mouse_pos[0], r_py - mouse_pos[1]]
+              if part["parent"] is not None and not shift_held:
+                drag_mode = "rotate_attached"
+                parent_part = placed_parts[part["parent"]]
+                parent_pts = get_world_points(parent_part)
+                pin_world = parent_pts[part["parent_joint"]]
+
+                local_pts = get_local_points_list(part["type"])
+                free_joint_idx = 1 if part["my_joint"] == 0 else 0
+                unrotated_free_offset = local_pts[free_joint_idx]
+
+                current_mouse_angle = math.degrees(
+                    math.atan2(pin_world.y - mouse_pos.y, mouse_pos.x - pin_world.x)
+                )
+                base_free_angle = math.degrees(
+                    math.atan2(
+                        -unrotated_free_offset.y, unrotated_free_offset.x
+                    )
+                )
+                rotation_angle_offset = (
+                    part["angle"] - current_mouse_angle - base_free_angle
+                )
+              else:
+                drag_mode = "move"
+                target_idx = i
+                if part["parent"] is not None and shift_held:
+                  curr = i
+                  while placed_parts[curr]["parent"] is not None:
+                    curr = placed_parts[curr]["parent"]
+                  target_idx = curr
+                  dragging_index = target_idx
+
+                r_px, r_py = placed_parts[dragging_index]["pos"]
+                drag_offset = [r_px - mouse_pos.x, r_py - mouse_pos.y]
               break
 
     elif event.type == pygame.MOUSEBUTTONUP:
       if event.button == 1:
         if dragging_type:
-          if mouse_pos[0] >= UI_WIDTH:
-            drop_x = mouse_pos[0] + drag_offset[0]
-            drop_y = mouse_pos[1] + drag_offset[1]
+          if mouse_pos.x >= UI_WIDTH:
+            drop_x = mouse_pos.x + drag_offset[0]
+            drop_y = mouse_pos.y + drag_offset[1]
             new_part = {
                 "type": dragging_type,
                 "pos": [drop_x, drop_y],
@@ -184,25 +263,34 @@ while running:
               part_pts = get_world_points(moved_part)
               snapped = False
               for my_j_idx, lp_world in enumerate(part_pts):
-                for b_idx, body_part in enumerate(placed_parts):
-                  if b_idx == dragging_index:
+                for target_idx, target_part in enumerate(placed_parts):
+                  if target_idx == dragging_index:
                     continue
-                  if body_part["type"] == "circle_body":
-                    body_pts = get_world_points(body_part)
-                    for bp_idx, bp_world in enumerate(body_pts):
-                      dist = lp_world.distance_to(bp_world)
-                      if dist < 25:  # Snap threshold distance
-                        dx = bp_world.x - lp_world.x
-                        dy = bp_world.y - lp_world.y
-
-                        tree = get_sub_tree(dragging_index, placed_parts)
-                        for idx in tree:
-                          placed_parts[idx]["pos"][0] += dx
-                          placed_parts[idx]["pos"][1] += dy
-
-                        moved_part["parent"] = b_idx
-                        moved_part["parent_joint"] = bp_idx
+                  if target_part["type"] in [
+                      "circle_body",
+                      "rect_limb",
+                      "leg",
+                  ]:
+                    target_pts = get_world_points(target_part)
+                    for tp_idx, tp_world in enumerate(target_pts):
+                      dist = lp_world.distance_to(tp_world)
+                      if dist < 25:
+                        moved_part["parent"] = target_idx
+                        moved_part["parent_joint"] = tp_idx
                         moved_part["my_joint"] = my_j_idx
+
+                        max_range = (
+                            45
+                            if target_part["type"] == "circle_body"
+                            else 90
+                        )
+                        straight_angle = get_straight_out_angle(
+                            target_part, tp_idx, moved_part, my_j_idx
+                        )
+                        moved_part["angle"] = clamp_angle_to_range(
+                            moved_part["angle"], straight_angle, max_range
+                        )
+
                         snapped = True
                         break
                     if snapped:
@@ -211,56 +299,74 @@ while running:
                   break
 
           dragging_index = None
+          drag_mode = None
 
     elif event.type == pygame.MOUSEWHEEL:
       if dragging_type:
         if dragging_type != "circle_body":
           current_angle = (current_angle + event.y * 15) % 360
-      elif dragging_index is not None:
+      elif dragging_index is not None and drag_mode == "move":
         part = placed_parts[dragging_index]
         if part["type"] != "circle_body":
           old_angle = part["angle"]
           new_angle = (old_angle + event.y * 15) % 360
-          part["angle"] = new_angle
 
           if part["parent"] is not None:
-            body_part = placed_parts[part["parent"]]
-            body_pts = get_world_points(body_part)
-            target_world_pt = body_pts[part["parent_joint"]]
+            parent_part = placed_parts[part["parent"]]
+            max_range = 45 if parent_part["type"] == "circle_body" else 90
+            straight_angle = get_straight_out_angle(
+                parent_part, part["parent_joint"], part, part["my_joint"]
+            )
+            new_angle = clamp_angle_to_range(
+                new_angle, straight_angle, max_range
+            )
 
-            part_pts_new = get_world_points(part)
-            current_joint_pt = part_pts_new[part["my_joint"]]
-            dx = target_world_pt.x - current_joint_pt.x
-            dy = target_world_pt.y - current_joint_pt.y
-            part["pos"][0] += dx
-            part["pos"][1] += dy
-          else:
-            old_pts = get_world_points(part)
-            old_joint_world = old_pts[0]
+          part["angle"] = new_angle
 
-            new_pts = get_world_points(part)
-            new_joint_world = new_pts[0]
-
-            part["pos"][0] += old_joint_world.x - new_joint_world.x
-            part["pos"][1] += old_joint_world.y - new_joint_world.y
-
-  # Mouse motion handling (dragging parts)
+  # Mouse motion handling
   if dragging_index is not None:
-    old_x, old_y = placed_parts[dragging_index]["pos"]
-    new_x = mouse_pos[0] + drag_offset[0]
-    new_y = mouse_pos[1] + drag_offset[1]
-    dx = new_x - old_x
-    dy = new_y - old_y
+    part = placed_parts[dragging_index]
+    if drag_mode == "rotate_attached":
+      parent_part = placed_parts[part["parent"]]
+      parent_pts = get_world_points(parent_part)
+      pin_world = parent_pts[part["parent_joint"]]
 
-    tree = get_sub_tree(dragging_index, placed_parts)
-    for idx in tree:
-      placed_parts[idx]["pos"][0] += dx
-      placed_parts[idx]["pos"][1] += dy
+      current_mouse_angle = math.degrees(
+          math.atan2(pin_world.y - mouse_pos.y, mouse_pos.x - pin_world.x)
+      )
+      local_pts = get_local_points_list(part["type"])
+      free_joint_idx = 1 if part["my_joint"] == 0 else 0
+      unrotated_free_offset = local_pts[free_joint_idx]
 
-    if shift_held and placed_parts[dragging_index]["parent"] is not None:
-      placed_parts[dragging_index]["parent"] = None
-      placed_parts[dragging_index]["parent_joint"] = None
-      placed_parts[dragging_index]["my_joint"] = None
+      raw_angle = (
+          current_mouse_angle + base_free_angle + rotation_angle_offset
+      ) % 360
+
+      max_range = 45 if parent_part["type"] == "circle_body" else 90
+      straight_angle = get_straight_out_angle(
+          parent_part, part["parent_joint"], part, part["my_joint"]
+      )
+      part["angle"] = clamp_angle_to_range(raw_angle, straight_angle, max_range)
+
+    elif drag_mode == "move":
+      old_x, old_y = part["pos"]
+      new_x = mouse_pos.x + drag_offset[0]
+      new_y = mouse_pos.y + drag_offset[1]
+      dx = new_x - old_x
+      dy = new_y - old_y
+
+      tree = get_sub_tree(dragging_index, placed_parts)
+      for idx in tree:
+        placed_parts[idx]["pos"][0] += dx
+        placed_parts[idx]["pos"][1] += dy
+
+      if shift_held and part["parent"] is not None:
+        part["parent"] = None
+        part["parent_joint"] = None
+        part["my_joint"] = None
+
+  # Continuously update/sync all child limbs to their parent pins every single frame
+  update_attached_children_positions(placed_parts)
 
   # --- DRAWING / RENDERING ---
   screen.fill((240, 240, 240))
@@ -337,8 +443,8 @@ while running:
     preview_part = {
         "type": dragging_type,
         "pos": [
-            mouse_pos[0] + drag_offset[0],
-            mouse_pos[1] + drag_offset[1],
+            mouse_pos.x + drag_offset[0],
+            mouse_pos.y + drag_offset[1],
         ],
         "angle": current_angle,
     }
