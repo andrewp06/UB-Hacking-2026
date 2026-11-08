@@ -7,7 +7,7 @@ pygame.init()
 # Window setup
 WIDTH, HEIGHT = 900, 700
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Character Creator - Clean Pin Rotation")
+pygame.display.set_caption("Character Creator - Continuous Frame Joint Sync")
 clock = pygame.time.Clock()
 
 # Load assets and scale cleanly for pixel art
@@ -149,6 +149,25 @@ def get_sub_tree(root_idx, parts):
   return tree
 
 
+def update_attached_children_positions(parts):
+  """Continuously updates every child limb's position each frame to match its parent's joint pin."""
+  for part in parts:
+    if part["parent"] is not None:
+      parent_part = parts[part["parent"]]
+      parent_pts = get_world_points(parent_part)
+      target_pin = parent_pts[part["parent_joint"]]
+
+      # Check where child's connecting joint currently is in world coordinates
+      child_pts = get_world_points(part)
+      current_joint = child_pts[part["my_joint"]]
+
+      # Shift child part so its joint snaps directly onto the parent's pin
+      dx = target_pin.x - current_joint.x
+      dy = target_pin.y - current_joint.y
+      part["pos"][0] += dx
+      part["pos"][1] += dy
+
+
 running = True
 while running:
   mouse_pos = pygame.math.Vector2(pygame.mouse.get_pos())
@@ -256,14 +275,6 @@ while running:
                     for tp_idx, tp_world in enumerate(target_pts):
                       dist = lp_world.distance_to(tp_world)
                       if dist < 25:
-                        dx = tp_world.x - lp_world.x
-                        dy = tp_world.y - lp_world.y
-
-                        tree = get_sub_tree(dragging_index, placed_parts)
-                        for idx in tree:
-                          placed_parts[idx]["pos"][0] += dx
-                          placed_parts[idx]["pos"][1] += dy
-
                         moved_part["parent"] = target_idx
                         moved_part["parent_joint"] = tp_idx
                         moved_part["my_joint"] = my_j_idx
@@ -279,14 +290,6 @@ while running:
                         moved_part["angle"] = clamp_angle_to_range(
                             moved_part["angle"], straight_angle, max_range
                         )
-
-                        part_pts_new = get_world_points(moved_part)
-                        current_joint_pt = part_pts_new[my_j_idx]
-                        fix_dx = tp_world.x - current_joint_pt.x
-                        fix_dy = tp_world.y - current_joint_pt.y
-                        for idx in tree:
-                          placed_parts[idx]["pos"][0] += fix_dx
-                          placed_parts[idx]["pos"][1] += fix_dy
 
                         snapped = True
                         break
@@ -320,25 +323,6 @@ while running:
 
           part["angle"] = new_angle
 
-          if part["parent"] is not None:
-            parent_part = placed_parts[part["parent"]]
-            parent_pts = get_world_points(parent_part)
-            target_world_pt = parent_pts[part["parent_joint"]]
-
-            part_pts_new = get_world_points(part)
-            current_joint_pt = part_pts_new[part["my_joint"]]
-            dx = target_world_pt.x - current_joint_pt.x
-            dy = target_world_pt.y - current_joint_pt.y
-            part["pos"][0] += dx
-            part["pos"][1] += dy
-          else:
-            old_pts = get_world_points(part)
-            old_joint_world = old_pts[0]
-            new_pts = get_world_points(part)
-            new_joint_world = new_pts[0]
-            part["pos"][0] += old_joint_world.x - new_joint_world.x
-            part["pos"][1] += old_joint_world.y - new_joint_world.y
-
   # Mouse motion handling
   if dragging_index is not None:
     part = placed_parts[dragging_index]
@@ -364,13 +348,6 @@ while running:
       )
       part["angle"] = clamp_angle_to_range(raw_angle, straight_angle, max_range)
 
-      part_pts_new = get_world_points(part)
-      current_joint_pt = part_pts_new[part["my_joint"]]
-      dx = pin_world.x - current_joint_pt.x
-      dy = pin_world.y - current_joint_pt.y
-      part["pos"][0] += dx
-      part["pos"][1] += dy
-
     elif drag_mode == "move":
       old_x, old_y = part["pos"]
       new_x = mouse_pos.x + drag_offset[0]
@@ -387,6 +364,9 @@ while running:
         part["parent"] = None
         part["parent_joint"] = None
         part["my_joint"] = None
+
+  # Continuously update/sync all child limbs to their parent pins every single frame
+  update_attached_children_positions(placed_parts)
 
   # --- DRAWING / RENDERING ---
   screen.fill((240, 240, 240))
