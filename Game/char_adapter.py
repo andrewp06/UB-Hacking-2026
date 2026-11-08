@@ -32,7 +32,7 @@ PARTS["circle_body"]["pins"] = [
 ]
 
 # Pick realistic masses here, independent of graphics sizes.
-DEFAULT_MASSES = {"circle_body": 1.0, "rect_limb": .5, "leg": .5, "long_rect_limb": .5}
+DEFAULT_MASSES = {"circle_body": 1.0, "rect_limb": .5, "leg": .5, "long_rect_limb": 1}
 
 
 @dataclass
