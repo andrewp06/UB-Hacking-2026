@@ -7,7 +7,6 @@ from character.circle import Circle
 from character.rectangle import Rectangle
 from character.guy import Guy
 from character.joint import Joint
-from character.simulation import Simulation
 
 
 # Must match the dimensions, centers and pin offsets in character_creation.py.
@@ -180,19 +179,16 @@ def convert_ui_parts(placed_parts, masses=None, ground_clearance=8.0):
     )
 
 
-def create_simulation(placed_parts, masses=None, ground_clearance=8.0, **settings):
-    """Build a Simulation preserving the creator's positions, angles and pins.
+# def create_simulation(placed_parts, masses=None, ground_clearance=8.0, **settings):
+#     """Build a Simulation preserving the creator's positions, angles and pins.
 
-    Initial angles are radians and follow guy.get_shapes() order.
-    Calling simulation.reset() restores the creator's pose as well.
-    """
-    data = convert_ui_parts(placed_parts, masses, ground_clearance)
-    if "initial_angles" in settings or "joint_anchors" in settings:
-        raise ValueError("Initial angles and joint anchors come from the creator")
-    return Simulation(
-        guy=data.guy,
-        positions=data.positions,
-        joint_anchors=data.joint_anchors,
-        initial_angles=data.initial_angles,
-        **settings,
-    )
+#     Initial angles are radians and follow guy.get_shapes() order.
+#     Calling simulation.reset() restores the creator's pose as well.
+#     """
+#     data = convert_ui_parts(placed_parts, masses, ground_clearance)
+#     if "initial_angles" in settings or "joint_anchors" in settings:
+#         raise ValueError("Initial angles and joint anchors come from the creator")
+#     return Simulation(
+#         data,
+#         **settings,
+#     )

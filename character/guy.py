@@ -34,8 +34,8 @@ class Guy:
     def add_joint(self, joint: Joint) -> None:
         if not isinstance(joint, Joint):
             raise TypeError("joint must be a Joint.")
-        parent = joint.get_shape_Parent()
-        child = joint.get_shape_Child()
+        parent = joint.get_shape_parent()
+        child = joint.get_shape_child()
         if parent is child:
             raise ValueError("A joint cannot connect a part to itself.")
         if not any(part is parent for part in self.__shapes):

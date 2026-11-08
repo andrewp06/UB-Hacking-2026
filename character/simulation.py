@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import pymunk
 
-from Char_adapter import ConvertedAlien
+from Game.char_adapter import ConvertedAlien
 
 from .circle import Circle
 from .rectangle import Rectangle
@@ -153,8 +153,8 @@ class Simulation:
             self.space.add_collision_handler(1, 2).begin = head_ground_collision
 
         for i, (joint, speed) in enumerate(zip(self.joints, self.motor_speeds)):
-            parent = self.bodies[id(joint.get_shape_Parent())]
-            child = self.bodies[id(joint.get_shape_Child())]
+            parent = self.bodies[id(joint.get_shape_parent())]
+            child = self.bodies[id(joint.get_shape_child())]
             if self.joint_anchors is None:
                 anchor = (
                     (parent.position.x + child.position.x) / 2,
@@ -196,8 +196,8 @@ class Simulation:
         ]
 
         for joint in self.joints:
-            parent = self.bodies[id(joint.get_shape_Parent())]
-            child = self.bodies[id(joint.get_shape_Child())]
+            parent = self.bodies[id(joint.get_shape_parent())]
+            child = self.bodies[id(joint.get_shape_child())]
             relative_angle = child.angle - parent.angle
             relative_angular_velocity = (
                 child.angular_velocity - parent.angular_velocity
@@ -215,12 +215,13 @@ class Simulation:
         self.limb_torques[id(limb)] = float(torque)
 
     def set_joint_torque(self, joint, torque: float):
+        actualTorque = torque * self.motor_max_force
         """Set a persistent actuator torque on a joint's parent and child."""
         if not any(candidate is joint for candidate in self.joints):
             raise ValueError("Joint is not part of this alien")
-        if not math.isfinite(torque):
+        if not math.isfinite(actualTorque):
             raise ValueError("Torque must be finite")
-        self.joint_torques[id(joint)] = float(torque)
+        self.joint_torques[id(joint)] = float(actualTorque)
 
     def get_result(self) -> SimulationResult:
         return SimulationResult(self.distance, self.elapsed, self.fell)
@@ -237,8 +238,8 @@ class Simulation:
             self.bodies[id(part)].torque = self.limb_torques[id(part)]
         for joint in self.joints:
             torque = self.joint_torques[id(joint)]
-            parent = self.bodies[id(joint.get_shape_Parent())]
-            child = self.bodies[id(joint.get_shape_Child())]
+            parent = self.bodies[id(joint.get_shape_parent())]
+            child = self.bodies[id(joint.get_shape_child())]
             parent.torque -= torque
             child.torque += torque
 
@@ -249,7 +250,7 @@ class Simulation:
         )
         return self.get_result()
 
-    def run(self, steps=None, dt=1/120, render=False) -> SimulationResult:
+    def run(self, steps=None, dt=1/120, render=False, network=None) -> SimulationResult:
         """Run up to steps * dt seconds. Defaults to self.duration / dt."""
         if not math.isfinite(dt) or dt <= 0:
             raise ValueError("dt must be a positive finite number")
@@ -318,7 +319,7 @@ class Simulation:
             frame_time = 0.0
             if pygame is not None:
                 draw()
-            for _ in range(steps):
+            for step in range(steps):
                 if pygame is not None:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
@@ -327,6 +328,13 @@ class Simulation:
                             return self.get_result()
                 if self.fell:
                     break
+                if network is not None:
+                    inputs = self.get_network_inputs()
+                    outputs = network.activate(inputs)
+
+                    for joint, output in zip(self.joints, outputs):
+                        self.set_joint_torque(joint, output)
+
                 self.step(dt)
                 frame_time += dt
                 if pygame is not None and (frame_time >= 1 / 60 or self.fell):

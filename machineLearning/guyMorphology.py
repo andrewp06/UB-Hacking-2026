@@ -8,8 +8,8 @@ class JointInfo:
     def __init__(self, joint_id, joint:Joint):
         self.id = joint_id
         self.joint = joint
-        self.body_a = joint.get_shape_a()
-        self.body_b = joint.get_shape_b()
+        self.body_a = joint.get_shape_parent()
+        self.body_b = joint.get_shape_child()
 
 
 class GuyMorphology:
