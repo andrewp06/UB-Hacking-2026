@@ -52,6 +52,7 @@ class EvolutionManager:
 
             if result != "rerun":
                 break
+        return result
 
 
 def evaluate_genome(genome, config, convertedAlien, steps, dt):
