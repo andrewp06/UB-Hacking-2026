@@ -1,5 +1,5 @@
 import neat
-
+from character.simulation import Simulation
 class EvolutionManager:
     def __init__(self, config):
         self.config = config
@@ -12,7 +12,7 @@ class EvolutionManager:
     def evaluate_generation(self, fitness_function):
         genomes = list(self.population.population.items())
 
-        for genome_id, genome in genomes:
+        for _, genome in genomes:
             genome.fitness = fitness_function(genome)
 
             if genome.fitness > self.best_fitness:
@@ -22,41 +22,38 @@ class EvolutionManager:
         self.generation += 1
 
     def mock_evaluation(genomes, config):
-        for genome_id, genome in genomes:
+        for _, genome in genomes:
             genome.fitness = 0.0
 
 
 def evaluate_genomes(
         genomes,
         config,
-        guy,
-        physics,
+        convertedAlien,
         simulation_steps,
         dt):
-
+    
     for _, genome in genomes:
 
         network = neat.nn.FeedForwardNetwork.create(
             genome, config
         )
 
-        # Create alien
-        alien = physics.create_alien(guy)
-        initial_x = alien.get_position().x
+        simulation = Simulation(convertedAlien)
 
         #simulate
         for _ in range(simulation_steps):
 
-            inputs = alien.get_neural_inputs() #there needs to be something like this defined for the physics to get the infor for each joint
+            inputs = simulation.get_neural_inputs() #there needs to be something like this defined for the physics to get the infor for each joint
 
             outputs = network.activate(inputs)
 
-            for joint, output in zip(alien.joints, outputs):
-                joint.apply_torque(output)
+            for joint, output in zip(convertedAlien.guy.get_joints(), outputs):
+                joint.set_joint_torque(joint, output)
 
-            physics.step(dt)
-
-        final_x = alien.get_position().x
-
-        genome.fitness = final_x - initial_x
+            simulation.step(dt)
+        result = simulation.get_result()
+        if(result.fell):
+            result / 1.1
+        genome.fitness = result.distance
 

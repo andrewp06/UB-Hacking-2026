@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 import pymunk
 
+from Char_adapter import ConvertedAlien
+
 from .circle import Circle
 from .rectangle import Rectangle
 from .guy import Guy
@@ -19,15 +21,17 @@ class SimulationResult:
 class Simulation:
     def __init__(
         self,
-        guy: Guy,
-        positions: list[tuple[float, float]],
+        convertedAlien: ConvertedAlien,
         motor_speeds: list[float] | None = None,
-        joint_anchors: list[tuple[float, float]] | None = None,
-        initial_angles: list[float] | None = None,
         gravity: float = -981.0,
         duration: float = 10.0,
         motor_max_force: float = 100000.0,
     ):
+        guy = convertedAlien.guy
+        positions = convertedAlien.positions
+        joint_anchors = convertedAlien.joint_anchors
+        initial_angles = convertedAlien.initial_angles
+        
         if not isinstance(guy, Guy):
             raise TypeError("guy must be a Guy object")
         self.guy = guy
@@ -178,7 +182,7 @@ class Simulation:
         self.tracked = self.bodies[id(tracked_part)]
         self.start_x = self.tracked.position.x
 
-    def GetNetwork_Inputs(self) -> list[float]:
+    def get_network_inputs(self) -> list[float]:
         """Return [head vx, head vy, joint1 angle, joint1 angular speed, ...].
 
         Joint measurements are relative (child minus parent) in the order
