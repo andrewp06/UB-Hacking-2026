@@ -3,6 +3,20 @@ import os
 import pygame
 
 
+# Define local connection points relative to part center (0,0)
+BODY_LOCAL_POINTS = []
+
+
+LIMB_LOCAL_POINTS = [
+    pygame.math.Vector2(0, -50),  # Top joint (Index 0)
+    pygame.math.Vector2(0, 50),  # Bottom joint (Index 1)
+]
+
+LEG_LOCAL_POINTS = [
+    pygame.math.Vector2(0, -50),  # Top joint (Index 0)
+    pygame.math.Vector2(0, 50),  # Bottom joint (Index 1)
+]
+
 
 def get_part_center_offset(ptype):
   if ptype == "circle_body":
@@ -152,24 +166,12 @@ def start_character_creater():
   current_angle = 0
   rotation_angle_offset = 0
 
-  # Define local connection points relative to part center (0,0)
-  BODY_LOCAL_POINTS = []
   body_angles = [-120, -60, 180, 0, 120, 60]
   for angle_deg in body_angles:
     rad = math.radians(angle_deg)
     bx = int(62 * math.cos(rad))
     by = int(62 * math.sin(rad))
     BODY_LOCAL_POINTS.append(pygame.math.Vector2(bx, by))
-
-  LIMB_LOCAL_POINTS = [
-      pygame.math.Vector2(0, -50),  # Top joint (Index 0)
-      pygame.math.Vector2(0, 50),  # Bottom joint (Index 1)
-  ]
-
-  LEG_LOCAL_POINTS = [
-      pygame.math.Vector2(0, -50),  # Top joint (Index 0)
-      pygame.math.Vector2(0, 50),  # Bottom joint (Index 1)
-  ]
 
   running = True
   while running:
